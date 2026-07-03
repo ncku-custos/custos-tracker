@@ -44,6 +44,20 @@ if(CTRK_WITH_ORT)
       src)
   target_link_libraries(ctrk_tbd PUBLIC ctrk::common ctrk::infer PRIVATE opencv_core opencv_imgproc)
   install(TARGETS ctrk_tbd EXPORT ctrkTargets)
+
+  add_library(ctrk_sot STATIC
+    src/sot/nanotrack.cpp
+    src/sot/sot_tracker.cpp
+  )
+  add_library(ctrk::sot ALIAS ctrk_sot)
+  target_include_directories(ctrk_sot
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+    PRIVATE
+      src)
+  target_link_libraries(ctrk_sot PUBLIC ctrk::common ctrk::infer PRIVATE opencv_core opencv_imgproc)
+  install(TARGETS ctrk_sot EXPORT ctrkTargets)
 endif()
 
 install(TARGETS ctrk_common EXPORT ctrkTargets)
