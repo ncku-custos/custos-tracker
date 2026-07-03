@@ -41,6 +41,28 @@ struct SotConfig {
   // frames reports Unstable; recovery above threshold restores Tracking.
   float lost_score_thr = -1.f;
   int lost_patience = 5;
+
+  // Appearance verification (RESULTS.md S3.3). Two embedders: an HSV H-S
+  // colour histogram (backend-free, zero models) and the NanoTrack template
+  // branch reused on candidate crops (nano backend only, zero new models).
+  // Similarity is 1 - Bhattacharyya for HsvHist and cosine for NanoZ;
+  // `accept`/`drift_thr` live in that per-embedder scale. Applied at two
+  // places: re-lock candidates below `accept` are vetoed (stay Lost rather
+  // than lock a lookalike — the Jogging failure), and with
+  // drift_check_every > 0 the *tracked* box is verified while Tracking so
+  // confident drift is caught even though the score never collapses (the
+  // Girl2 failure); a drift verdict latches Lost until appearance recovers
+  // or a verified re-acquisition lands.
+  // Thresholds live in the embedder's own similarity scale, so -1 means
+  // auto (measured in RESULTS.md S3.3): HsvHist accept 0.4 / drift 0.4,
+  // NanoZ accept 0.65 / drift 0.55.
+  struct Reid {
+    enum class Embedder : uint8_t { None, HsvHist, NanoZ };
+    Embedder embedder = Embedder::None;
+    float accept = -1.f;        // min similarity for a re-lock candidate; -1 = auto
+    int drift_check_every = 0;  // 0 = off; else verify the tracked box every K frames
+    float drift_thr = -1.f;     // tracked-box similarity below this -> Lost; -1 = auto
+  } reid;
 };
 
 // Detector-assisted re-acquisition, active while the state machine reports

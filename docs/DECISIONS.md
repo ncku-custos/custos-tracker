@@ -135,3 +135,24 @@ detector, 2t+no-spin SOT); host-best settings live in `--threads` and
 `scripts/bench.sh tbd_tuned`. Same discipline applies to the step-4 SoC:
 re-sweep, don't port numbers. The GPU unblocks ROADMAP item 9 (VisDrone
 fine-tune); training runs on this host with torch cu128.
+
+## D-0012 — re-ID embedder ladder verdict: HSV for the re-lock veto, NanoZ reuse for drift, no new model (2026-07-03)
+
+Step-3 item 1 (RESULTS.md S3.3). The ladder stopped before OSNet: the HSV
+H-S histogram (zero models, backend-free) is the re-lock verifier — it
+removes the M4 wrong-jogger re-lock at accept 0.4 and improves the Woman
+rescue — and the NanoTrack template branch reused as an embedder
+(`NanoTracker::embed`, zero NEW models, conv-only and already
+NPU-exported) is the proactive drift detector for the nano backend
+(strictly >= baseline everywhere, Girl2 +0.018 AUC at thr 0.55 / K=5).
+The two failure roles want different embedders: colour separates adjacent
+lookalikes but false-fires as a drift signal under partial occlusion,
+while the siamese features are too identity-compressed (~0.5-0.65 cosine
+for any pedestrian) to veto lookalikes but are exactly calibrated to
+"does this still look like my template" drift. OSNet-lite would add a
+model, an INT8 decision and an NPU-portability review (D-0005) for a
+niche neither zero-cost embedder failed to cover — not taken; revisit
+only if a real drone scenario shows both embedders failing (that evidence
+would also justify the model cost). References freeze at init by design:
+re-ID must answer "is this the ORIGINAL target", and template adaptation
+is the separate dual-template experiment (step-3 item 7).

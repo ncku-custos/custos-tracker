@@ -99,5 +99,87 @@ TEST(Reacquire, DistractorAloneNeverRelocks) {
       << "wrong-class distractor must never satisfy re-acquisition";
 }
 
+// Two same-class lookalikes (the M4 Jogging failure): the tracked target is
+// occluded for good while a same-class, same-size, differently-coloured
+// distractor stays inside the growing search radius. Reports both as class 0.
+class TwoTargetDetector final : public IDetector {
+ public:
+  TwoTargetDetector(const synth::Sequence* seq, int target_occluded_from)
+      : seq_(seq), from_(target_occluded_from) {}
+
+  std::vector<Detection> detect(const FrameView& frame) override {
+    const int t = static_cast<int>(frame.t_ns);
+    std::vector<Detection> dets;
+    const auto boxes = seq_->gt(t);
+    if (t < from_) dets.push_back({boxes[0], 0.9f, 0});  // the real target
+    dets.push_back({boxes[1], 0.9f, 0});                 // the lookalike
+    return dets;
+  }
+
+ private:
+  const synth::Sequence* seq_;
+  int from_;
+};
+
+// Geometry shared by the wrong-relock pair below: target (red) occluded for
+// good at frame 10; distractor (blue) 200 px below — far outside MOSSE's
+// local correlation window (so the tracker itself cannot drift onto it) but
+// inside the re-acquisition radius once it has grown for ~28 lost frames.
+// Same class, size and motion: only appearance separates them.
+synth::Sequence wrong_relock_sequence() {
+  synth::Options opt;
+  opt.frames = 100;
+  opt.occluder = true;
+  opt.occluder_rect = {0, 130, 640, 90};
+  opt.occluder_from = 10;  // the real target never comes back
+  return synth::Sequence(opt, {{.box0 = {100, 150, 60, 60}, .vx = 1.5f, .color = {0, 60, 220}},
+                               {.box0 = {100, 350, 60, 60}, .vx = 1.5f, .color = {220, 60, 0}}});
+}
+
+// Documents the M4 pathology: without appearance verification the geometric
+// gates accept the lookalike and re-lock the WRONG target.
+TEST(ReidVerify, GatesAloneRelockTheWrongLookalike) {
+  synth::Sequence seq = wrong_relock_sequence();
+  SotConfig cfg;
+  cfg.backend = SotBackend::Mosse;
+  cfg.lost_patience = 5;
+  SotTracker tracker(cfg);
+  ReacquireConfig rc;
+  rc.class_id = 0;
+  tracker.enable_reacquire(std::make_unique<TwoTargetDetector>(&seq, 10), rc);
+
+  tracker.init(as_frame_view(seq.frame(0), 0), seq.gt(0)[0]);
+  bool wrong_relock = false;
+  for (int t = 1; t < seq.frames(); ++t) {
+    const SotResult r = tracker.update(as_frame_view(seq.frame(t), t));
+    if (t > 10 && r.state != SotState::Lost && iou(r.box, seq.gt(t)[1]) > 0.3f) wrong_relock = true;
+  }
+  EXPECT_TRUE(wrong_relock) << "expected the documented failure the re-ID veto removes";
+}
+
+TEST(ReidVerify, HsvVetoRejectsTheLookalikeAndStaysLost) {
+  synth::Sequence seq = wrong_relock_sequence();
+  SotConfig cfg;
+  cfg.backend = SotBackend::Mosse;
+  cfg.lost_patience = 5;
+  cfg.reid.embedder = SotConfig::Reid::Embedder::HsvHist;
+  cfg.reid.accept = 0.5f;
+  SotTracker tracker(cfg);
+  ReacquireConfig rc;
+  rc.class_id = 0;
+  tracker.enable_reacquire(std::make_unique<TwoTargetDetector>(&seq, 10), rc);
+
+  tracker.init(as_frame_view(seq.frame(0), 0), seq.gt(0)[0]);
+  bool wrong_relock = false;
+  SotState final_state = SotState::Tracking;
+  for (int t = 1; t < seq.frames(); ++t) {
+    const SotResult r = tracker.update(as_frame_view(seq.frame(t), t));
+    final_state = r.state;
+    if (t > 10 && r.state != SotState::Lost && iou(r.box, seq.gt(t)[1]) > 0.3f) wrong_relock = true;
+  }
+  EXPECT_FALSE(wrong_relock) << "a colour-mismatched lookalike must be vetoed";
+  EXPECT_EQ(final_state, SotState::Lost) << "with the target gone, Lost is the honest answer";
+}
+
 }  // namespace
 }  // namespace ctrk

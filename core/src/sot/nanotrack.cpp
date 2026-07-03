@@ -110,6 +110,21 @@ void NanoTracker::init(const cv::Mat& image, const BBox& target) {
   zf_.assign(out[0].data, out[0].data + backbone_z_->output_descs()[0].elements());
 }
 
+std::vector<float> NanoTracker::embed(const cv::Mat& image, const BBox& box) const {
+  const float sum = box.w + box.h;
+  const float w_ext = box.w + cfg_.context_amount * sum;
+  const float h_ext = box.h + cfg_.context_amount * sum;
+  const int s = std::max(1, static_cast<int>(std::sqrt(w_ext * h_ext)));
+
+  cv::Mat crop, scratch;  // local buffers: embed runs at re-ID cadence, not per frame
+  nano_subwindow(image, box.cx(), box.cy(), s, kExemplar, crop, scratch);
+  std::vector<float> blob;
+  blob_rgb(crop, blob);
+  const auto& in = backbone_z_->input_descs()[0];
+  const auto out = backbone_z_->run({{in.name, in.shape, blob.data()}});
+  return {out[0].data, out[0].data + backbone_z_->output_descs()[0].elements()};
+}
+
 SotResult NanoTracker::update(const cv::Mat& image) {
   // Reference quirks preserved: int truncation of the size sum, and
   // sx = sz * (255/127) where 255/127 is INTEGER division = 2.

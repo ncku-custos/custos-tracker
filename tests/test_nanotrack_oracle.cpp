@@ -10,6 +10,7 @@
 #include "common/geometry.hpp"
 #include "common/mat_view.hpp"
 #include "ctrk/sot.hpp"
+#include "sot/nanotrack.hpp"
 #include "support/synth.hpp"
 
 namespace ctrk {
@@ -99,6 +100,44 @@ TEST(NanotrackOracle, TracksSynthTargetAbsolutely) {
   }
   mean_iou /= static_cast<float>(seq.frames() - 1);
   EXPECT_GT(mean_iou, 0.5f) << "tracker lost the synthetic target";
+}
+
+// NanoTracker::embed replicates init()'s crop geometry exactly, so embedding
+// the init box must reproduce the stored template features bit-for-bit,
+// while a background crop must be measurably less similar (S3.3 re-ID).
+TEST(NanotrackEmbed, InitBoxEmbeddingMatchesTemplate) {
+  if (!models_present())
+    GTEST_SKIP() << "run models/get_models.sh && tools/export/export_nanotrack.py";
+
+  synth::Options opt;
+  opt.frames = 2;
+  synth::Sequence seq(opt, {{.box0 = {100, 150, 60, 90}, .color = {0, 80, 220}}});
+
+  SotConfig cfg;
+  cfg.backbone_z_path = cache("nanotrack_backbone_z.onnx");
+  cfg.backbone_x_path = cache("nanotrack_backbone_x.onnx");
+  cfg.head_path = cache("nanotrack_head.onnx");
+  NanoTracker tracker(cfg);
+  const cv::Mat f0 = seq.frame(0);
+  const BBox b0 = seq.gt(0)[0];
+  tracker.init(f0, b0);
+
+  auto cos = [](const std::vector<float>& a, const std::vector<float>& b) {
+    float dot = 0.f, na = 0.f, nb = 0.f;
+    for (size_t i = 0; i < a.size(); ++i) {
+      dot += a[i] * b[i];
+      na += a[i] * a[i];
+      nb += b[i] * b[i];
+    }
+    return dot / (std::sqrt(na) * std::sqrt(nb));
+  };
+
+  const auto same = tracker.embed(f0, b0);
+  ASSERT_EQ(same.size(), tracker.zf().size());
+  EXPECT_GT(cos(same, tracker.zf()), 0.999f);
+
+  const auto background = tracker.embed(f0, {420.f, 320.f, 60.f, 90.f});
+  EXPECT_LT(cos(background, tracker.zf()), cos(same, tracker.zf()));
 }
 
 }  // namespace

@@ -30,6 +30,14 @@ class NanoTracker {
   void init(const cv::Mat& image, const BBox& target);
   SotResult update(const cv::Mat& image);
 
+  // Appearance embedding for re-ID verification (RESULTS.md S3.3): run the
+  // template branch on a 127x127 context crop centered on `box` (the same
+  // geometry init() uses) and return the raw feature vector. Does not touch
+  // tracker state.
+  std::vector<float> embed(const cv::Mat& image, const BBox& box) const;
+  // Frozen init-time template features — the re-ID reference.
+  const std::vector<float>& zf() const { return zf_; }
+
  private:
   static constexpr int kExemplar = 127;
   static constexpr int kInstance = 255;

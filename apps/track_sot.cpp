@@ -28,6 +28,10 @@ const char* kUsage =
     "{reacquire   |       | on Lost, re-acquire via detector (class/position/size gated)}"
     "{det-model   | models/cache/yolov8n_640.onnx | detector ONNX for --reacquire}"
     "{class       | 0     | required detector class for --reacquire (-1 = any)}"
+    "{reid        | hsv   | re-lock appearance verification: hsv | nanoz | none (S3.3)}"
+    "{reid-accept | -1    | min re-ID similarity for a re-lock candidate (-1 = auto)}"
+    "{drift-every | 0     | verify the tracked box every K frames (0 = off, S3.3)}"
+    "{drift-thr   | -1    | tracked-box similarity below this -> Lost (-1 = auto)}"
     "{output o    | sot_out.mp4 | annotated output video ('' to disable)}"
     "{dump        |       | write per-frame 'x,y,w,h' results (OTB format, incl. init frame)}"
     "{bench-json  |       | write per-stage latency stats as JSON}"
@@ -63,6 +67,18 @@ int main(int argc, char** argv) {
   cfg.engine.intra_op_threads = cli.get<int>("threads");
   if (cli.has("spin")) cfg.engine.allow_spinning = true;
   cfg.engine.use_dnnl = cli.has("dnnl");
+  const std::string reid = cli.get<std::string>("reid");
+  if (reid == "hsv") {
+    cfg.reid.embedder = ctrk::SotConfig::Reid::Embedder::HsvHist;
+  } else if (reid == "nanoz") {
+    cfg.reid.embedder = ctrk::SotConfig::Reid::Embedder::NanoZ;
+  } else if (reid != "none" && !reid.empty()) {
+    std::fprintf(stderr, "bad --reid, expected hsv, nanoz or none\n");
+    return 1;
+  }
+  cfg.reid.accept = cli.get<float>("reid-accept");
+  cfg.reid.drift_check_every = cli.get<int>("drift-every");
+  cfg.reid.drift_thr = cli.get<float>("drift-thr");
   std::optional<ctrk::SotTracker> tracker;
   try {
     tracker.emplace(cfg);

@@ -425,3 +425,59 @@ measurement; deterministic evals, post-NSA baselines):
   flicker at N=1 — measured: MOT16-04 N=1 anchors digit-identical (31.3 /
   23 / 43.9, FN one box lower); MOT16-13 N=1 +0.1 MOTA/IDF1. Within gates;
   anchors unchanged.
+
+## S3.3 — SOT re-ID appearance verification: HSV veto default in --reacquire, NanoZ drift check opt-in (2026-07-03)
+
+Both M4 failure modes attacked with one `similarity(img, box)` seam and two
+zero-new-model embedders — (a) HSV H-S histogram (1 − Bhattacharyya,
+backend-free) and (b) the NanoTrack template branch re-run on candidate
+crops (`NanoTracker::embed`, cosine vs the frozen init `zf_`; nano only).
+Three insertion points: re-lock candidates below `accept` are vetoed (and
+the survivor is picked by similarity, not proximity); a periodic check on
+the *tracked* box latches Lost when appearance collapses even though the
+score never does; the veto also guards every later re-lock. References are
+frozen at init so verification always compares against the original target.
+The synthetic lookalike pair is a unit test (`ReidVerify.*`: gates alone
+re-lock the wrong target; the veto stays Lost).
+
+**Wrong re-lock (Jogging, MOSSE + --reacquire)** — accept sweep, HSV:
+
+| accept | 0 (off) | 0.2 | 0.3 | **0.4** | 0.5 |
+|---|---|---|---|---|---|
+| Jogging AUC | 0.155 | 0.155 | 0.155 | **0.558** | 0.558 |
+| Woman AUC / prec@20 | 0.198/0.454 | 0.198/0.454 | 0.198/0.454 | **0.235/0.563** | 0.102/0.198 |
+
+accept=0.4 (the HSV auto) removes the wrong-jogger re-lock entirely
+(0.155 -> 0.558, prec@20 0.228 -> 0.974 — the M4 hypothesis target was
+>= 0.5) and IMPROVES the Woman rescue (a bad early re-lock is now vetoed, a
+better later one taken). Honest caveat: the separating bands are narrow —
+wrong-jogger sim lands in [0.3, 0.4), the Woman rescue in [0.4, 0.5).
+
+**Confident drift (Girl2, nano)** — the drift check fires at score 1.00
+(log: "drift detected (similarity 0.59 < …, score 1.00)"), which is exactly
+the blindness M4 documented. Full nano mini-OTB per embedder (reacquire on):
+
+| config | Girl2 | Jogging | other 4 | MEAN AUC / prec@20 |
+|---|---|---|---|---|
+| baseline / reacq-only / hsv-veto-only | 0.437/0.616 | 0.684 | unchanged | 0.631/0.872 |
+| hsv drift K=5 thr 0.4 | 0.441/**0.793** | **0.657 (regression)** | unchanged | 0.627/0.901 |
+| **nanoz drift K=5 thr 0.55 acc 0.65** | **0.455/0.687** | 0.684 | unchanged | **0.634/0.884** |
+
+- nano + reacquire alone (and the veto alone) change NOTHING on nano — the
+  score-driven Lost never fires, confirming the M4 analysis.
+- HSV as the *drift* embedder false-fires on Jogging's partial occlusions
+  (-0.027 AUC there) — rejected for the drift role.
+- NanoZ as the drift embedder is strictly >= baseline on every sequence.
+  Its similarity scale is compressed (~0.5-0.65 for any person-ish crop —
+  the backbone was trained for localization, not identity), so thresholds
+  are tight: thr 0.5 never fires (= baseline), 0.6 over-fires. 0.55 adopted.
+- Ladder stops at (b): OSNet-lite (c) not needed — (a) won the veto role,
+  (b) won the drift role.
+
+**Defaults**: within `--reacquire` the HSV veto is now ON (`--reid=hsv`,
+auto accept 0.4; `--reid=none` restores pure geometric gating). The drift
+check stays opt-in (`--drift-every=5 --reid=nanoz` is the measured Girl2
+configuration). Default-config mini-OTB is untouched: 0.631 exact, 75
+tests green (oracle + embed test running). Costs: NanoZ embed ≈ one extra
+z-graph pass per checked frame (FPS column above shows the drift-check
+runs slower on Lost-heavy sequences); HSV is ~free.
