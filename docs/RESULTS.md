@@ -3,14 +3,18 @@
 Metric and latency tables per milestone. Populated as milestones land; this file is the
 regression baseline for step 2 (speed) and step 3 (quality improvements).
 
-## M1 — TBD on MOT16-04 (pending)
+## M1 — TBD on MOT16-04 (2026-07-03, host CPU, 1920x1080, YOLOv8n@640 person class)
 
-| Mode | MOTA | FP | FN | IDSW | FPS (e2e) |
-|---|---|---|---|---|---|
-| SORT | | | | | |
-| ByteTrack | | | | | |
+| Mode | MOTA | MOTP(dist) | FP | FN | IDSW | IDF1 | e2e p50 | FPS |
+|---|---|---|---|---|---|---|---|---|
+| SORT | 25.3% | 0.163 | 744 | 34768 | 29 | 39.0% | 44.9 ms | ~22 |
+| ByteTrack | **31.0%** | 0.176 | 1132 | 31665 | **23** | **43.7%** | 44.6 ms | ~22 |
 
-Acceptance: MOTA > 25%, ByteTrack IDSW reduction >= 20% vs SORT, >= 10 FPS.
+Acceptance: MOTA > 25% ✓ (31.0%) · ByteTrack IDSW cut >= 20% vs SORT ✓ (29 -> 23,
+-20.7%) · >= 10 FPS ✓ (~22). GT: MOT16 native (motchallenge.net unreachable; MOT17
+re-annotation swap pending network access — flagged in fetch_mot.sh). High FN is the
+COCO-pretrained nano detector on small/occluded pedestrians — expected at this stage;
+VisDrone/finetune is step 3.
 
 ## M2 — SOT on mini-OTB (pending)
 

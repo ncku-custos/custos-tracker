@@ -11,7 +11,14 @@ GT preprocessing: keep rows with consider-flag 1 and pedestrian class (1).
 
 import argparse
 
-import motmetrics as mm
+import numpy as np
+
+# motmetrics 1.4 still calls np.asfarray, removed in numpy 2.0; restore it
+# before motmetrics touches it. Drop when motmetrics ships a numpy-2 release.
+if not hasattr(np, "asfarray"):
+    np.asfarray = lambda a, dtype=np.float64: np.asarray(a, dtype=dtype)
+
+import motmetrics as mm  # noqa: E402  (must follow the shim)
 
 METRICS = ["num_frames", "mota", "motp", "num_false_positives", "num_misses",
            "num_switches", "idf1", "num_objects"]
