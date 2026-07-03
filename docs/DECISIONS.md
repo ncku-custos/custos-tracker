@@ -73,3 +73,15 @@ Host distro == deployment distro (Ubuntu 26.04), so system `libopencv-dev` 4.10 
 LTS lifetime. Escape hatch for other hosts: `-DCTRK_ORT_ROOT=<unpacked official tarball>`.
 Export opset is pinned at 12 — NPU toolchains lag at opset ~12-17, so portability is
 enforced at export time, not runtime.
+
+## D-0009 — Host build-flag policy: portable default, opt-in native tuning (2026-07-03)
+
+The shipped build stays plain `-O3` (baseline x86-64 today, whatever the SoC's
+compiler defaults to later): the deployment target is an unknown ARM SoC, so
+ISA-specific host flags would optimize the wrong machine and mask the numbers
+that transfer. `-DCTRK_MARCH_NATIVE=ON` and `-DCTRK_LTO=ON` exist as opt-in
+CMake options for benchmarking how far compiler-side vectorization can carry
+the hand-written loops (blob conversion, decode) — measured against the same
+scenarios in RESULTS.md before/after. Note ORT's MLAS kernels dispatch
+AVX2/VNNI at runtime regardless of these flags, so they can only move the
+~4% of TBD time outside `det.infer` (and the SOT crop/blob stages).
