@@ -10,21 +10,35 @@ mkdir -p downloads otb
 
 SEQS=(Car4 CarDark BlurCar2 Human3 Girl2 DragonBaby)
 MIRRORS=(
+  # Hanyang's server 404s these paths as of 2026-07; the Wayback Machine
+  # snapshot serves the original zips verbatim (id_ = raw, no rewriting).
+  "https://web.archive.org/web/2020id_/http://cvlab.hanyang.ac.kr/tracker_benchmark/seq"
   "http://cvlab.hanyang.ac.kr/tracker_benchmark/seq"
 )
 
 for seq in "${SEQS[@]}"; do
   [[ -d otb/$seq ]] && { echo "ok        $seq"; continue; }
   zip="downloads/$seq.zip"
+  # A zip only counts once it passes integrity — truncated mirror transfers
+  # (seen with Wayback) are deleted and the next mirror is tried.
+  if [[ -f $zip ]] && ! unzip -q -t "$zip" >/dev/null 2>&1; then
+    echo "corrupt   $seq.zip — refetching" >&2
+    rm -f "$zip"
+  fi
   if [[ ! -f $zip ]]; then
     ok=0
     for m in "${MIRRORS[@]}"; do
       echo "fetching  $seq from $m"
-      if curl -fSL --retry 2 --connect-timeout 15 "$m/$seq.zip" -o "$zip"; then ok=1; break; fi
+      if curl -fSL --retry 2 --connect-timeout 15 "$m/$seq.zip" -o "$zip" &&
+         unzip -q -t "$zip" >/dev/null 2>&1; then
+        ok=1
+        break
+      fi
+      rm -f "$zip"
     done
     [[ $ok = 1 ]] || { echo "no mirror served $seq — add a mirror to MIRRORS" >&2; exit 1; }
   fi
-  unzip -q -t "$zip"
   unzip -q -o "$zip" -d otb/
+  rm -rf otb/__MACOSX
 done
 echo "otb: ready at data/otb/ (${SEQS[*]})"

@@ -26,8 +26,15 @@ if [[ ! -d mot/MOT16-04 ]]; then
     done
     [[ $ok = 1 ]] || { echo "no mirror served MOT16.zip" >&2; exit 1; }
   fi
-  unzip -q -o "$zip" 'train/MOT16-04/*' -d downloads/mot16
-  mv downloads/mot16/train/MOT16-04 mot/
+  # Two known internal layouts: official 'train/...' and the PaddleDetection
+  # mirror's 'MOT16/images/train/...'.
+  if unzip -l "$zip" | grep -q ' train/MOT16-04/'; then
+    unzip -q -o "$zip" 'train/MOT16-04/*' -d downloads/mot16
+    mv downloads/mot16/train/MOT16-04 mot/
+  else
+    unzip -q -o "$zip" 'MOT16/images/train/MOT16-04/*' -d downloads/mot16
+    mv downloads/mot16/MOT16/images/train/MOT16-04 mot/
+  fi
   rm -rf downloads/mot16
   [[ ${KEEP_ZIP:-0} = 1 ]] || rm -f "$zip"
 fi
