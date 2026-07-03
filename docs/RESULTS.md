@@ -250,3 +250,38 @@ crops (nano). Two rehearsal lessons were earned the hard way:
   never quantized by design (it is the stay-on-CPU graph in the NPU split
   plan). Re-run this experiment with the vendor toolchain once the NPU is
   known — the balance is different there (D-0008).
+
+## S2.6 — step-2 rollup (v0.2.0, 2026-07-03)
+
+Final `scripts/bench.sh --reps 3` (powersave governor, unpinned; note the
+no-spin SOT default also collapsed run-to-run variance, σ 0.27 → 0.005):
+
+| scenario | S2.0 baseline | v0.2.0 | Δ | quality proof |
+|---|---|---|---|---|
+| TBD default (fp32@640, 4 thr) | 43.78 ms | 43.08 ms | −2% | dump byte-identical |
+| TBD `--threads=10` | — | 32.73 ms (31 FPS) | −25% | MOTA/FP/FN/IDSW digit-identical |
+| TBD INT8 (head fp32) | — | 23.96 ms (42 FPS) | −45% | MOTA 31.3 vs 31.0 (parity) |
+| TBD INT8 + `--detect-every=2` | — | **10.1 ms eff. (~99 FPS)** | −77% | MOTA 29.9, IDF1 44.0 (> baseline) |
+| SOT nano Car4 | 2.73 ms | **1.94 ms (515 FPS)** | −29% | oracle green, AUC 0.631 exact |
+| SOT nano @1080p | 3.65 ms | **2.12 ms (472 FPS)** | −42% | (same code path) |
+| SOT MOSSE Car4 | 0.370 ms | 0.221 ms | −40% | bit-exact subwindow test |
+
+Acceptance-bar scorecard (plan: draft-a-plan step 2):
+- SOT Car4 ≤ 2.2 ms ✓ (1.94) · SOT@1080p ≥ 40% cut ✓ (−42%) · quality
+  gates ✓ (strongest form: byte-identical / digit-identical / bit-exact) ·
+  ladder ≥ 30 FPS with quantified cost ✓ (three rungs: 42 / 67 / ~99 FPS) ·
+  bench.sh reproducibility ✓.
+- **TBD quality-neutral ≤ 30 ms: MISSED on the strict definition** — the
+  best quality-*identical* config is 32.7 ms (1.34×). 96% of the pipeline
+  is the fp32 ORT session, and threads were the only quality-identical
+  lever left; the plan's risk section predicted exactly this. The INT8 rung
+  (24.0 ms, metric-parity) crosses the bar in practice and is one flag away.
+
+Recommended operating points (host; re-validate on the SoC in step 4):
+- **Drone TBD**: `--threads=<nproc-2> --model=..._int8.onnx --detect-every=2`
+  → ~99 FPS effective, MOTA −1.1 vs baseline, identity metrics better than
+  baseline. Add `--no-spin` when power matters (−40% CPU, +~1 ms).
+- **Drone SOT**: defaults (2 threads, no-spin) — 1.9-2.1 ms/frame leaves
+  >90% of a 30 FPS frame budget to the rest of the system.
+- Step-3 quality work (re-ID, GMC) should re-run this ladder; the knobs
+  compose with it unchanged.

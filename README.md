@@ -26,9 +26,23 @@ ctest --test-dir build --output-on-failure
 ```
 
 `scripts/check.sh` runs build + tests + format check (the pre-commit gate).
+`scripts/bench.sh` reproduces the latency tables in `docs/RESULTS.md`
+(multi-run medians; see the step-2 noise methodology there).
 
-Models: `models/get_models.sh` (SHA256-verified, see `models/manifest.json`).
+Models: `models/get_models.sh` (SHA256-verified, see `models/manifest.json`);
+`tools/export/export_yolo.py --imgsz 640 512 ...` for detector variants and
+`tools/export/quantize.py` for the INT8 QDQ variants (docs/DECISIONS.md D-0008).
 Datasets: `data/fetch_otb.sh`, `data/fetch_mot.sh`.
+
+## Speed knobs (measured in docs/RESULTS.md step 2)
+
+- `track_tbd --threads=N` — detector intra-op threads (host-best: nproc−2).
+- `track_tbd --detect-every=N` — detector cadence with Kalman coasting between;
+  N=2 halves compute and *improves* identity metrics on MOT16-04.
+- `--model models/cache/yolov8n_640_int8.onnx` — INT8 detector, metric-parity
+  at 1.35x speed. INT8 + `--detect-every=2` is the recommended operating point.
+- `--no-spin` (TBD) — ~40% less CPU for ~3% latency; the SoC power posture.
+  SOT defaults to no-spin already (it is faster there).
 
 ## Layout
 
