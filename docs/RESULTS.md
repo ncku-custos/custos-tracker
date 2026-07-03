@@ -50,6 +50,37 @@ Acceptance: >= 200 FPS ✓ (964+) · Car4/CarDark mean IoU >= 0.5 ✓ (0.623) ·
 collapse under occlusion ✓ (unit test). Blur and long occlusion defeat a 64x64
 correlation filter as expected — MOSSE is the NN-free fallback, not the main line.
 
-## M4 — latency baseline (pending)
+## M4 — lost detection, re-acquisition, latency baseline (2026-07-03)
 
-Per-stage p50/p95 from `--bench-json`.
+**State machine + re-acquisition (mechanism)**: verified by unit/e2e tests —
+synthetic occlusion drives Tracking -> Unstable -> Lost; a gated (class,
+position-radius growing with time-lost, size-similarity) nearest candidate from
+the detector re-seeds the template under Unstable probation; a wrong-class
+distractor never re-locks.
+
+**Real-data behaviour (honest picture)**:
+
+| Case | Without re-acquire | With re-acquire | What it shows |
+|---|---|---|---|
+| Woman / MOSSE | AUC 0.102, prec@20 0.198 | AUC 0.198, **prec@20 0.454** | The rescue loop works on real footage (1 re-lock fired) |
+| Jogging / MOSSE | AUC 0.558 | AUC 0.155 | Two adjacent same-class targets: gates re-lock the WRONG jogger — needs appearance verification (step 3 re-ID) |
+| Girl2 / nano | AUC 0.437 | AUC 0.437 (never fires) | NanoTrack fails by CONFIDENT drift to a distractor; score never collapses, so confidence-gated loss detection is blind to it (step 3: re-ID verification, GMC) |
+
+Consequence for defaults: `--reacquire` is opt-in per scenario; for a
+single-target-class scene with real occlusions it is a clear win, in
+multi-instance scenes it needs step-3 appearance verification. Both failure
+modes are exactly the top of the step-3 improvement list.
+
+## Latency baseline (step-2 optimization reference, host: 12-core x86_64)
+
+| Pipeline | Input | n | mean | p50 | p95 | FPS(p50) |
+|---|---|---|---|---|---|---|
+| TBD detect+track (YOLOv8n@640 + ByteTrack) | 1920x1080 | 1050 | 44.26 ms | 44.29 ms | 45.37 ms | ~23 |
+| SOT NanoTrack (3 ORT graphs) | 360x240 (Car4) | 659 | 2.84 ms | 2.74 ms | 3.26 ms | ~365 |
+| SOT MOSSE (cv::dft, 64x64) | 360x240 (Car4) | 659 | 0.43 ms | 0.38 ms | 0.65 ms | ~2600 |
+
+JSON artifacts: `results/bench_*.json` (regenerate with `--bench-json`). Demo
+overlays: `results/*.mp4` (gitignored; regenerate with the commands in this file's
+history). Known cosmetic noise: duplicate ONNX schema warnings at startup when
+OpenCV-dnn and ONNX Runtime coexist in one process (each carries a libonnx copy) —
+harmless, filtered in scripts.
