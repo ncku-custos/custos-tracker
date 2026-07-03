@@ -198,3 +198,24 @@ Findings:
   here.
 - Side observation: detect-frame p50 is *lower* at N≥2 (28-30 vs 31 ms) —
   the idle coast frames let the hybrid cores recover boost headroom.
+
+## S2.4 — tradeoff ladder knob: detector input resolution
+
+Static exports (opset 12, same contract; `export_yolo.py --imgsz`), MOT16-04
+@1080p, `--threads=10`. The C++ detector is shape-driven, so this is
+export-only.
+
+| input | total p50 | FPS | MOTA | IDF1 | IDSW | FP | FN |
+|---|---|---|---|---|---|---|---|
+| 640 (default) | 32.3 ms | 31 | **31.0%** | 43.7% | 23 | 1132 | 31665 |
+| 512 | 21.5 ms | 47 | 24.0% | 37.5% | 11 | 844 | 35284 |
+| 448 | 16.8 ms | 60 | 18.1% | 28.7% | 11 | 744 | 38171 |
+| 416 | 15.4 ms | 65 | 16.9% | 27.4% | 11 | 612 | 38913 |
+
+Verdict: **on this footage, resolution is the WORST rung of the ladder** —
+MOT16-04 pedestrians are already small at 1080p, and every step down
+explodes FN. Head-to-head at equal compute: 416 costs 15.4 ms for 16.9
+MOTA, while detect-every-2 at 640 costs 15.0 ms for **29.2** MOTA. Prefer
+the interval knob whenever targets are small; revisit resolution only for
+close-range/large-object drone scenarios (and re-measure there — this
+ranking is scene-dependent, not universal).
