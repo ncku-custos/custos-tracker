@@ -74,6 +74,14 @@ if want tbd_mot16; then
     "$BUILD/apps/track_tbd" -i="$ROOT/data/mot/MOT16-04/img1/%06d.jpg" --classes=0 -o=
 fi
 
+# TBD, host-tuned engine (RESULTS.md S2.2 sweep verdict: 10 threads on the
+# 12-thread i5-1335U; add --no-spin to trade ~1 ms for ~40% less CPU).
+if want tbd_tuned; then
+  run_scenario tbd_tuned "detect+track" \
+    "$BUILD/apps/track_tbd" -i="$ROOT/data/mot/MOT16-04/img1/%06d.jpg" --classes=0 -o= \
+    --threads=10
+fi
+
 # SOT nano: OTB Car4 (659 frames, 360x240), gt init box.
 if want sot_nano_car4; then
   run_scenario sot_nano_car4 "sot" \

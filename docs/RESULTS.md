@@ -128,3 +128,45 @@ What the numbers dictate:
   whose scopes cover >99% of each pipeline's fused-stage time.
 - Capture (sequential JPEG decode, ~5.6 ms @1080p) and encode are outside the
   compute path but reported by `--bench-json` for completeness.
+
+## S2.1 — semantic-preserving CPU work (all outputs proven identical)
+
+| change | stage | before | after | proof of equivalence |
+|---|---|---|---|---|
+| cached canvas + planar preprocess | det.preprocess | 1.30 ms | 0.81 ms | MOT16-04 dump byte-identical |
+| row-contiguous decode + scratch | det.decode | 0.46 ms | 0.32 ms | golden tensor exact + dump |
+| pad-only-when-needed subwindow | sot.crop @1080p | 1.44 ms | 0.13 ms | bit-exact test + oracle green |
+| — effect on nano @1080p | sot total | 3.65 ms | 2.34 ms | mini-OTB AUC 0.631 reproduced exactly |
+| — effect on nano Car4 | sot total | 2.73 ms | 2.01 ms | (same run set) |
+| lazy pad mean at MOSSE call site | sot total | 0.370 ms | 0.223 ms | crop_subwindow bit-exact test |
+
+Negative result (D-0009): `-DCTRK_MARCH_NATIVE=ON -DCTRK_LTO=ON` moved no owned
+stage (preprocess 0.80 vs 0.81, decode 0.315 vs 0.32); the hand loops are
+memory-bound at SSE2 already and ORT dispatches its own SIMD. Both options
+stay OFF.
+
+## S2.2 — ORT engine tuning (sweep verdicts, 2026-07-03)
+
+Detector thread sweep (det.infer p50, 1080p MOT16-04; 1 rep, best confirmed 3-rep):
+
+| intra-op threads | 1 | 2 | 4 (old default) | 6 | 8 | **10** | 12 | 0=auto |
+|---|---|---|---|---|---|---|---|---|
+| det.infer (ms) | 84.2 | 48.5 | 40.9 | 36.8 | 33.6 | **31.0** | 35.9 | 34.0 |
+
+- **10 threads (nproc−2) is host-best**: 3-rep median infer 30.96 / total
+  32.27 ms (~31 FPS). 12 oversubscribes (main thread contention); ORT auto
+  picks worse. Exposed as `--threads`; `tbd_tuned` bench scenario pins it.
+- **Spin control**: TBD t10 `--no-spin` costs ~1 ms (33.4 vs 32.3) but cuts
+  process CPU from **1002% to 597%** — the recommended SoC posture; default
+  stays spinning for the host latency headline.
+- **SOT nano: 2 threads + no-spin strictly dominates** — fastest of every
+  measured config (Car4 p50 **1.926 ms**, 3 reps, was 2.73 at S2.0) and 355%
+  → 213% CPU. Now the SotConfig default (`--spin` restores the old
+  behavior). Three tiny sessions busy-waiting between the two sequential
+  runs per frame only fight each other. 1 thread: ~156% CPU, ~0.6 ms slower
+  — the minimal-CPU option.
+- **oneDNN EP: rejected** — det.infer 79.5 ms, ~2.6x slower than the default
+  CPU EP on this graph; dropped (D-0010).
+- Engine plumbing (shared env, cached MemoryInfo, prebuilt name arrays,
+  reused input vector, load-time warmup) removed the first-frame spike;
+  steady-state effect within noise, kept for allocation hygiene.

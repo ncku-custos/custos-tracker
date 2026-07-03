@@ -23,7 +23,7 @@ const char* kUsage =
     "{backbone-x  | models/cache/nanotrack_backbone_x.onnx | search branch ONNX}"
     "{head        | models/cache/nanotrack_head.onnx | correlation head ONNX}"
     "{threads     | 2     | intra-op threads per graph}"
-    "{no-spin     |       | stop the ORT pools busy-waiting between runs (lower idle CPU)}"
+    "{spin        |       | re-enable ORT pool busy-waiting (default off: slower AND hungrier)}"
     "{dnnl        |       | experimental oneDNN execution provider}"
     "{reacquire   |       | on Lost, re-acquire via detector (class/position/size gated)}"
     "{det-model   | models/cache/yolov8n_640.onnx | detector ONNX for --reacquire}"
@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
   cfg.backbone_x_path = cli.get<std::string>("backbone-x");
   cfg.head_path = cli.get<std::string>("head");
   cfg.engine.intra_op_threads = cli.get<int>("threads");
-  cfg.engine.allow_spinning = !cli.has("no-spin");
+  if (cli.has("spin")) cfg.engine.allow_spinning = true;
   cfg.engine.use_dnnl = cli.has("dnnl");
   std::optional<ctrk::SotTracker> tracker;
   try {

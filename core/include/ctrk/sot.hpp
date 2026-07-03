@@ -21,8 +21,12 @@ struct SotConfig {
   std::string backbone_z_path;  // template branch, run once at init
   std::string backbone_x_path;  // search branch, per frame
   std::string head_path;        // correlation head, per frame
-  // Engine knobs, applied to all three graphs.
-  EngineOptions engine{.intra_op_threads = 2};
+  // Engine knobs, applied to all three graphs. Measured on the reference
+  // host (docs/RESULTS.md S2.2): 2 threads with spinning DISABLED is both
+  // the fastest and the cheapest-in-CPU configuration — three small
+  // sessions' pools busy-waiting between the two sequential runs per frame
+  // only fight each other. 1 thread trades ~0.6 ms for another ~60% CPU cut.
+  EngineOptions engine{.intra_op_threads = 2, .allow_spinning = false};
 
   // Post-processing constants — cv::TrackerNano parity (do not tune before
   // the oracle differential test passes; tuning is step 3).

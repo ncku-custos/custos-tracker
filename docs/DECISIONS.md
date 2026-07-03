@@ -85,3 +85,17 @@ the hand-written loops (blob conversion, decode) — measured against the same
 scenarios in RESULTS.md before/after. Note ORT's MLAS kernels dispatch
 AVX2/VNNI at runtime regardless of these flags, so they can only move the
 ~4% of TBD time outside `det.infer` (and the SOT crop/blob stages).
+
+## D-0010 — ORT engine tuning verdicts on the reference host (2026-07-03)
+
+Full sweep in RESULTS.md S2.2. Adopted: 10 intra-op threads (nproc−2) as the
+documented host-tuned detector setting (default stays portable; `--threads`
+exposes it); nano default becomes 2 threads + `allow_spinning=false`, which
+measured fastest AND cheapest (three small sessions' pools busy-waiting
+between sequential per-frame runs only fight each other on the hybrid
+2P+8E part). Rejected: the oneDNN execution provider (~2.6x slower than the
+default CPU EP for YOLOv8n despite shipping in the Ubuntu package — not
+worth a config surface) and ORT auto thread selection (worse than explicit
+nproc−2). Spinning-off is the recommended power posture for the SoC: on TBD
+it trades ~3% latency for ~40% process-CPU; re-measure both on the real
+target before freezing step-4 defaults.
