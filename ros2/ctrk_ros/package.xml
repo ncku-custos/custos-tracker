@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ctrk_ros</name>
+  <version>0.4.0</version>
+  <description>
+    ROS2 Lyrical composable lifecycle nodes wrapping the ROS-free ctrk core
+    (docs/PLAN.md step 4). The core is NOT a rosdep key: it is consumed via
+    find_package(ctrk) from a CMake prefix — scripts/ros_check.sh installs it
+    to ros2/install-ctrk before colcon runs (docs/DECISIONS.md D-0015).
+  </description>
+  <maintainer email="syankuan@gmail.com">TheLamb</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>rclcpp_components</depend>
+  <depend>sensor_msgs</depend>
+  <depend>vision_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>ctrk_interfaces</depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
