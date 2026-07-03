@@ -109,6 +109,25 @@ void print_stage_summary(const StageTimer& timer) {
   }
 }
 
+bool write_bench_json(const StageTimer& timer, const std::string& path, int frames) {
+  FILE* f = std::fopen(path.c_str(), "w");
+  if (!f) {
+    log(LogLevel::Error, "failed to open bench json: " + path);
+    return false;
+  }
+  std::fprintf(f, "{\n  \"frames\": %d,\n  \"stages\": {", frames);
+  bool first = true;
+  for (const auto& [stage, stats] : timer.stats()) {
+    std::fprintf(f, "%s\n    \"%s\": {\"n\": %zu, \"mean_ms\": %.3f, \"p50_ms\": %.3f, \"p95_ms\": %.3f}",
+                 first ? "" : ",", stage.c_str(), stats.count(), stats.mean_ms(), stats.p50_ms(),
+                 stats.p95_ms());
+    first = false;
+  }
+  std::fprintf(f, "\n  }\n}\n");
+  std::fclose(f);
+  return true;
+}
+
 bool parse_bbox(const std::string& s, BBox& out) {
   float v[4];
   int consumed = 0;

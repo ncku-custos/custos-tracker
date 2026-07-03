@@ -26,6 +26,7 @@ const char* kUsage =
     "{class       | 0     | required detector class for --reacquire (-1 = any)}"
     "{output o    | sot_out.mp4 | annotated output video ('' to disable)}"
     "{dump        |       | write per-frame 'x,y,w,h' results (OTB format, incl. init frame)}"
+    "{bench-json  |       | write per-stage latency stats as JSON}"
     "{display     |       | show a live window (never default: headless CI/drone)}";
 
 }  // namespace
@@ -111,5 +112,7 @@ int main(int argc, char** argv) {
 
   std::printf("frames: %d\n", src->frames_read());
   ctrk::app::print_stage_summary(timer);
+  if (cli.has("bench-json") && !cli.get<std::string>("bench-json").empty())
+    ctrk::app::write_bench_json(timer, cli.get<std::string>("bench-json"), src->frames_read());
   return 0;
 }

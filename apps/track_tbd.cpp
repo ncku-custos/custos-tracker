@@ -23,6 +23,7 @@ const char* kUsage =
     "{conf     | 0.1   | detector confidence floor}"
     "{output o | tbd_out.mp4 | annotated output video ('' to disable)}"
     "{dump     |       | write MOT-format results (frame,id,x,y,w,h,score,-1,-1,-1)}"
+    "{bench-json |     | write per-stage latency stats as JSON}"
     "{display  |       | show a live window (never default: headless CI/drone)}";
 
 std::vector<int> parse_classes(const std::string& s) {
@@ -106,5 +107,7 @@ int main(int argc, char** argv) {
 
   std::printf("frames: %d\n", src->frames_read());
   ctrk::app::print_stage_summary(timer);
+  if (cli.has("bench-json") && !cli.get<std::string>("bench-json").empty())
+    ctrk::app::write_bench_json(timer, cli.get<std::string>("bench-json"), src->frames_read());
   return 0;
 }

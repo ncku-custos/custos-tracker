@@ -56,6 +56,9 @@ void draw_hud(cv::Mat& frame, const StageTimer& timer, double fps_now);
 // Print the end-of-run stage table to stdout.
 void print_stage_summary(const StageTimer& timer);
 
+// Write per-stage latency stats as JSON (the step-2 optimization baseline).
+bool write_bench_json(const StageTimer& timer, const std::string& path, int frames);
+
 // Parse "x,y,w,h" into a BBox; returns false on malformed input.
 bool parse_bbox(const std::string& s, BBox& out);
 
