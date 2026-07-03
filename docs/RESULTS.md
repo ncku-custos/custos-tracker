@@ -170,3 +170,31 @@ Detector thread sweep (det.infer p50, 1080p MOT16-04; 1 rep, best confirmed 3-re
 - Engine plumbing (shared env, cached MemoryInfo, prebuilt name arrays,
   reused input vector, load-time warmup) removed the first-frame spike;
   steady-state effect within noise, kept for allocation hygiene.
+
+## S2.3 — tradeoff ladder knob: detect-every-N + KF coasting
+
+MOT16-04 @1080p, YOLOv8n@640, `--threads=10`; coasted predictions are scored
+against the per-frame GT (an honest measure of coasting quality). Effective
+latency = mean over all frames (detect frames ~29-31 ms, coast frames ~4 µs).
+
+| N | effective mean | eff. FPS | MOTA | IDF1 | IDSW | FP | FN |
+|---|---|---|---|---|---|---|---|
+| 1 (default) | 32.3 ms | 31 | **31.0%** | 43.7% | 23 | 1132 | 31665 |
+| 2 | **15.0 ms** | 67 | 29.2% | **44.4%** | **18** | 1123 | 32510 |
+| 3 | 10.5 ms | 95 | 28.4% | 41.3% | 20 | 1075 | 32957 |
+| 5 | 6.0 ms | 166 | 25.0% | 38.4% | 13 | 1021 | 34613 |
+
+Findings:
+- **N=2 halves compute for −1.8 MOTA while IDENTITY metrics improve**
+  (IDF1 +0.7, IDSW 23→18): the KF bridging detector flicker beats
+  re-associating noisy per-frame detections. The MOTA cost is coasted-box
+  drift counted as FN. N=2 is the recommended drone operating point when
+  detector budget matters.
+- Even N=5 (166 FPS effective) still meets the original M1 MOTA bar (25%).
+- Caveat for fast targets: a track still inside n_init confirmation has no
+  learned velocity, and the tentative-stage IoU gate (0.7) sees N× the
+  inter-detection motion — track birth churns for objects moving faster
+  than ~⅓ box-width per detect interval. Step-3 re-ID/GMC work also lands
+  here.
+- Side observation: detect-frame p50 is *lower* at N≥2 (28-30 vs 31 ms) —
+  the idle coast frames let the hybrid cores recover boost headroom.
