@@ -74,12 +74,19 @@ if want tbd_mot16; then
     "$BUILD/apps/track_tbd" -i="$ROOT/data/mot/MOT16-04/img1/%06d.jpg" --classes=0 -o=
 fi
 
-# TBD, host-tuned engine (RESULTS.md S2.2 sweep verdict: 10 threads on the
-# 12-thread i5-1335U; add --no-spin to trade ~1 ms for ~40% less CPU).
+# TBD: MOT16-13 (750 frames, 1920x1080, moving camera) — step-3 GMC scenario.
+if want tbd_mot16_13; then
+  run_scenario tbd_mot16_13 "detect+track" \
+    "$BUILD/apps/track_tbd" -i="$ROOT/data/mot/MOT16-13/img1/%06d.jpg" --classes=0 -o=
+fi
+
+# TBD, host-tuned engine (RESULTS.md S3.0 sweep verdict: 8 threads = the
+# physical core count on the Ryzen 7 7700; SMT oversubscription regresses.
+# The i5-1335U verdict was 10 = nproc−2 — re-sweep per host, S2.2/S3.0).
 if want tbd_tuned; then
   run_scenario tbd_tuned "detect+track" \
     "$BUILD/apps/track_tbd" -i="$ROOT/data/mot/MOT16-04/img1/%06d.jpg" --classes=0 -o= \
-    --threads=10
+    --threads=8
 fi
 
 # SOT nano: OTB Car4 (659 frames, 360x240), gt init box.

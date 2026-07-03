@@ -285,3 +285,77 @@ Recommended operating points (host; re-validate on the SoC in step 4):
   >90% of a 30 FPS frame budget to the rest of the system.
 - Step-3 quality work (re-ID, GMC) should re-run this ladder; the knobs
   compose with it unchanged.
+
+# Step 3 — quality improvements (started 2026-07-03)
+
+Method unchanged from step 2: hypothesis -> eval -> keep-or-revert; negative
+results recorded. Quality gates for default-config changes (anchors reproduced
+digit-identical on this host, see S3.0 — no re-anchor needed): all tests green
+with the oracle and golden tensor actually RUNNING (they GTEST_SKIP without
+fetched models — a fresh checkout is "green" without exercising them),
+mini-OTB mean AUC within 0.005 of 0.631, MOT16-04 MOTA within 0.2 pt of
+31.0%, IDSW within 2 of 23 (adopting ROADMAP.md's stricter form as canonical).
+Latency claims clear 2x the S3.0 stddev. Oracle-breaking features stay
+config-gated until metrics prove them.
+
+## S3.0 — step-2 host retired; new-host bring-up + baseline (2026-07-03)
+
+Host: AMD Ryzen 7 7700 (8C/16T homogeneous, AVX-512), 14 GB RAM, RTX 5060
+8 GB (driver 580.159.03, CUDA 13.0 — unblocks the step-3 VisDrone item),
+Ubuntu 26.04, gcc 15.2, OpenCV 4.10, ORT 1.23, powersave governor. Python
+tooling: torch 2.11.0+cu128, ultralytics resolved to **8.4.86 — the exact
+step-2 pin**, so YOLO exports are the same graphs.
+
+Gate reproduction (fresh local exports, MOT16 native GT — motchallenge.net
+is connection-refused from this network too, so the MOT17-04 GT upgrade
+stays pending):
+
+| gate | step-2 anchor | this host | verdict |
+|---|---|---|---|
+| mini-OTB mean AUC | 0.631 | 0.631 (all 6 per-seq AUCs identical) | exact |
+| MOT16-04 MOTA / IDSW / IDF1 | 31.0% / 23 / 43.7% | 31.0% / 23 / 43.7% | digit-identical |
+| tests | 68 pass | 68 pass, oracle + golden tensor running | green |
+
+Anchors carry over unchanged (D-0011). Noise floor, 5 reps, unpinned:
+
+| scenario | p50 median | stddev | 2σ floor | FPS | old host |
+|---|---|---|---|---|---|
+| tbd_mot16 (fp32@640, 4 thr) | 24.981 ms | 0.055 | 0.11 ms | 40 | 43.78 |
+| tbd_mot16_13 (new: moving cam) | 24.819 ms | 0.070 | 0.14 ms | 40 | — |
+| sot_nano_car4 | 1.713 ms | 0.005 | 0.01 ms | 584 | 1.94 |
+| sot_nano_1080p | 1.778 ms | 0.004 | 0.008 ms | 562 | 2.12 |
+| sot_mosse_car4 | 0.255 ms | 0.000 | — | 3922 | 0.221 |
+
+Homogeneous cores collapse the run-to-run variance (no P/E bimodality —
+no pinning caveat needed on this host). Host-tuning re-sweep (D-0010 numbers
+do NOT transfer, as that entry warned):
+
+| detector intra-op threads | 4 | 6 | 7 | **8** | 9 | 10 | 12 | 14 | 16 | 0=auto |
+|---|---|---|---|---|---|---|---|---|---|---|
+| det.infer p50 (ms) | 23.8 | 18.8 | 17.1 | **15.9** | 19.1 | 20.7 | 19.6 | 18.7 | 17.7 | 18.8 |
+
+- **8 threads = the physical core count is a sharp optimum** (3-rep medians:
+  7 -> 17.12, 8 -> 15.89, 9 -> 19.07; total 17.05 ms, ~59 FPS). The i5's
+  nproc−2 heuristic would pick 14 (18.7 ms, −18%). SMT siblings actively
+  hurt MLAS here; `tbd_tuned` now pins `--threads=8`.
+- **SOT spin verdict flips on this host**: 2t+no-spin (the SotConfig
+  default) is 1.709 ms / 208% CPU, but 2t+spin is 1.512 ms / 358% and
+  4t+spin 1.226 ms / 726%. On the i5, no-spin was fastest AND cheapest; here
+  no-spin costs ~12% latency for −40% CPU. The default stays no-spin (it is
+  the SoC power posture, and the absolute cost is 0.2 ms), but the "strictly
+  dominates" claim is i5-specific — re-measure on the SoC in step 4.
+
+MOT16-13 baseline (new second eval scenario, bus-mounted moving camera,
+750 frames; MOT16 native GT, pedestrian class):
+
+| config | MOTA | MOTP | FP | FN | IDSW | IDF1 |
+|---|---|---|---|---|---|---|
+| defaults, N=1 | 13.2% | 0.228 | 78 | 9856 | 6 | 21.3% |
+| `--detect-every=2` | 9.3% | 0.240 | 24 | 10356 | 2 | 16.0% |
+
+FN-dominated (9856 of 11450 GT boxes missed — small pedestrians from a
+moving platform are exactly the COCO-nano failure mode, M1) and nearly
+IDSW-free at this detection density, so GMC/appearance work (S3.4/S3.5)
+will be read primarily through MOTA/FN/IDF1 deltas here, not IDSW. Unlike
+MOT16-04, N=2 clearly hurts on this sequence — camera motion breaks the
+constant-velocity coast — which is itself the GMC hypothesis in miniature.
