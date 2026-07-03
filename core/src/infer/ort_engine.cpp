@@ -89,8 +89,8 @@ class OrtEngine final : public IEngine {
     std::vector<TensorView> views;
     for (size_t i = 0; i < last_outputs_.size(); ++i) {
       const auto info = last_outputs_[i].GetTensorTypeAndShapeInfo();
-      views.push_back(
-          TensorView{output_descs_[i].name, info.GetShape(), last_outputs_[i].GetTensorData<float>()});
+      views.push_back(TensorView{output_descs_[i].name, info.GetShape(),
+                                 last_outputs_[i].GetTensorData<float>()});
     }
     return views;
   }
