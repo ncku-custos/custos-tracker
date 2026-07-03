@@ -1,0 +1,7 @@
+#include "ctrk/version.hpp"
+
+namespace ctrk {
+
+const char* version() { return "@PROJECT_VERSION@"; }
+
+}  // namespace ctrk
