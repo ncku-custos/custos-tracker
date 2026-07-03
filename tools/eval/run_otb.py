@@ -14,7 +14,7 @@ import numpy as np
 from sot_eval import evaluate, load_boxes
 
 ROOT = Path(__file__).resolve().parents[2]
-SEQS = ["Car4", "CarDark", "BlurCar2", "Human3", "Girl2", "Woman"]
+SEQS = ["Car4", "CarDark", "BlurCar2", "Jogging", "Girl2", "Woman"]
 
 
 def main() -> None:
@@ -40,7 +40,8 @@ def main() -> None:
         run = subprocess.run(
             [args.binary, f"--input={seq_dir}/img/%04d.jpg", f"--bbox={x},{y},{w},{h}",
              f"--backend={args.backend}", f"--dump={res_path}", "--output="],
-            capture_output=True, text=True, check=True)
+            capture_output=True, text=True, check=True,
+            cwd=ROOT)  # app model-path defaults are repo-relative
         fps = 0.0
         m = re.search(r"sot\s+\d+\s+([\d.]+)", run.stdout)
         if m:

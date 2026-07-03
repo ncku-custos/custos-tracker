@@ -8,7 +8,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p downloads otb
 
-SEQS=(Car4 CarDark BlurCar2 Human3 Girl2 Woman)  # DragonBaby: never archived, swapped for Woman
+SEQS=(Car4 CarDark BlurCar2 Jogging Girl2 Woman)  # DragonBaby never archived -> Woman; Human3 zip too large for stable Wayback transfer -> Jogging
 MIRRORS=(
   # Hanyang's server 404s these paths as of 2026-07; the Wayback Machine
   # snapshot serves the original zips verbatim (id_ = raw, no rewriting).
@@ -31,7 +31,7 @@ for seq in "${SEQS[@]}"; do
     # HTTP/1.1 and resume the partial across attempts instead of deleting it.
     ok=0
     for m in "${MIRRORS[@]}"; do
-      for attempt in 1 2 3; do
+      for attempt in 1 2 3 4 5; do
         echo "fetching  $seq from $m (attempt $attempt)"
         curl -fSL --http1.1 --retry 2 --connect-timeout 15 -C - "$m/$seq.zip" \
           -o "$zip.part" || true

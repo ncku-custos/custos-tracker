@@ -1,6 +1,7 @@
 #include <opencv2/core.hpp>
 
 #include <cstdio>
+#include <optional>
 #include <fstream>
 #include <string>
 
@@ -50,7 +51,13 @@ int main(int argc, char** argv) {
   cfg.backbone_z_path = cli.get<std::string>("backbone-z");
   cfg.backbone_x_path = cli.get<std::string>("backbone-x");
   cfg.head_path = cli.get<std::string>("head");
-  ctrk::SotTracker tracker(cfg);
+  std::optional<ctrk::SotTracker> tracker;
+  try {
+    tracker.emplace(cfg);
+  } catch (const std::exception& e) {
+    std::fprintf(stderr, "tracker init failed: %s\n", e.what());
+    return 1;
+  }
 
   std::ofstream dump;
   if (cli.has("dump") && !cli.get<std::string>("dump").empty())
@@ -74,11 +81,11 @@ int main(int argc, char** argv) {
       const auto scope = timer.scope("sot");
       const ctrk::FrameView view = ctrk::as_frame_view(frame, t_ns);
       if (!initialized) {
-        tracker.init(view, box);
+        tracker->init(view, box);
         result = {box, 1.f, ctrk::SotState::Tracking};
         initialized = true;
       } else {
-        result = tracker.update(view);
+        result = tracker->update(view);
       }
     }
     dump_box(result.box);

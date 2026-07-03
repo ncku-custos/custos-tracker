@@ -2,6 +2,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include <cstdio>
+#include <optional>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -62,7 +63,13 @@ int main(int argc, char** argv) {
   cfg.detector.keep_classes = parse_classes(cli.get<std::string>("classes"));
   cfg.assoc.use_byte = cli.get<std::string>("mode") != "sort";
   cfg.nominal_fps = src->fps();
-  ctrk::MultiTracker tracker(cfg);
+  std::optional<ctrk::MultiTracker> tracker;
+  try {
+    tracker.emplace(cfg);
+  } catch (const std::exception& e) {
+    std::fprintf(stderr, "tracker init failed: %s\n", e.what());
+    return 1;
+  }
 
   std::ofstream dump;
   if (cli.has("dump") && !cli.get<std::string>("dump").empty())
@@ -78,7 +85,7 @@ int main(int argc, char** argv) {
     std::vector<ctrk::Track> tracks;
     {
       const auto scope = timer.scope("detect+track");
-      tracks = tracker.update(ctrk::as_frame_view(frame, t_ns));
+      tracks = tracker->update(ctrk::as_frame_view(frame, t_ns));
     }
     for (const auto& t : tracks) {
       if (t.state != ctrk::TrackState::Confirmed) continue;

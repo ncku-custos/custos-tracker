@@ -27,6 +27,13 @@ struct SotConfig {
   float window_influence = 0.455f;
   float size_lr = 0.37f;
   float context_amount = 0.5f;
+
+  // Lost detection (score below threshold for `lost_patience` consecutive
+  // frames). Score scales differ per backend, so -1 means auto: 0.30 for
+  // NanoTrack (raw classifier peak), 8.0 for MOSSE (PSR). 1..patience-1 low
+  // frames reports Unstable; recovery above threshold restores Tracking.
+  float lost_score_thr = -1.f;
+  int lost_patience = 5;
 };
 
 // Single-object tracker facade. init() with a target box, then update() per
