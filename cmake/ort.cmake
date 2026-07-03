@@ -7,6 +7,10 @@ set(CTRK_ORT_ROOT "" CACHE PATH "Path to an unpacked official onnxruntime releas
 
 add_library(ctrk_ort INTERFACE)
 add_library(ctrk::ort ALIAS ctrk_ort)
+# Part of the install export set: ctrk_infer PRIVATE-links it, which still
+# lands in the static lib's LINK_ONLY interface. Consumers must find_package
+# onnxruntime themselves (proper Config-file plumbing is a step-4 task).
+install(TARGETS ctrk_ort EXPORT ctrkTargets)
 
 if(CTRK_ORT_ROOT)
   if(NOT EXISTS ${CTRK_ORT_ROOT}/include/onnxruntime_cxx_api.h)

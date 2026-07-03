@@ -18,6 +18,19 @@ target_include_directories(ctrk_common
     src)
 target_link_libraries(ctrk_common PRIVATE opencv_core opencv_imgproc)
 
+if(CTRK_WITH_ORT)
+  add_library(ctrk_infer STATIC src/infer/ort_engine.cpp)
+  add_library(ctrk::infer ALIAS ctrk_infer)
+  target_include_directories(ctrk_infer
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+    PRIVATE
+      src)
+  target_link_libraries(ctrk_infer PUBLIC ctrk::common PRIVATE ctrk::ort)
+  install(TARGETS ctrk_infer EXPORT ctrkTargets)
+endif()
+
 install(TARGETS ctrk_common EXPORT ctrkTargets)
 install(DIRECTORY include/ DESTINATION include)
 install(EXPORT ctrkTargets NAMESPACE ctrk:: DESTINATION lib/cmake/ctrk)
