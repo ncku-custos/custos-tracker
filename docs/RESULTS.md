@@ -219,3 +219,34 @@ MOTA, while detect-every-2 at 640 costs 15.0 ms for **29.2** MOTA. Prefer
 the interval knob whenever targets are small; revisit resolution only for
 close-range/large-object drone scenarios (and re-measure there — this
 ranking is scene-dependent, not universal).
+
+## S2.5 — tradeoff ladder knob: INT8 static QDQ (the NPU rehearsal, D-0008)
+
+`tools/export/quantize.py`: QDQ, per-channel INT8 weights, UINT8
+activations, calibrated on 300 MOT16-04 frames (YOLO) / OTB gt-centered
+crops (nano). Two rehearsal lessons were earned the hard way:
+1. Per-channel DQ needs opset ≥ 13 (`axis`); the INT8 *variant* is bumped,
+   the canonical fp32 opset-12 artifact is untouched.
+2. Quantizing the whole graph produced **zero detections**: the Detect head
+   concatenates box coords (0..640) and class scores (0..1) into one tensor
+   and a single activation scale crushes the scores. Head (`model.22`)
+   stays fp32; backbone+neck carry the speedup.
+
+| config (@640, t10) | total p50 | FPS | MOTA | IDF1 | IDSW |
+|---|---|---|---|---|---|
+| fp32 (reference) | 32.3 ms | 31 | 31.0% | 43.7% | 23 |
+| INT8 bb+neck, head fp32 | **24.0 ms** | 42 | **31.3%** | **45.1%** | 25 |
+| INT8 + detect-every-2 | **10.1 ms eff.** | ~99 | 29.9% | 44.0% | 20 |
+
+- **Detector INT8 is metric-parity at 1.35x speed** (AVX-VNNI; 12.3 → 6.3 MB
+  with the fp32 head). The +0.3 MOTA is threshold jitter, not a real gain.
+- **INT8 + N=2 is the recommended drone operating point**: 3.2x less
+  compute than the fp32 baseline for −1.1 MOTA, identity metrics better
+  than baseline.
+- **nano backbones: INT8 rejected on host** — mean AUC 0.631 → 0.555
+  (Car4 collapses 0.719 → 0.287; depthwise sensitivity is
+  sequence-dependent) AND it is *slower* (~430 vs ~500 FPS: per-layer QDQ
+  overhead beats VNNI gains on ~1 MB graphs). The correlation head was
+  never quantized by design (it is the stay-on-CPU graph in the NPU split
+  plan). Re-run this experiment with the vendor toolchain once the NPU is
+  known — the balance is different there (D-0008).

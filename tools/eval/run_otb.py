@@ -2,6 +2,10 @@
 """Run track_sot over the mini-OTB set and print the metric table.
 
 Usage: tools/.venv/bin/python tools/eval/run_otb.py [--binary build/apps/track_sot]
+           [--extra --backbone-x=models/cache/nanotrack_backbone_x_int8.onnx ...]
+
+Everything after --extra is passed verbatim to track_sot (model overrides,
+--threads, ...).
 """
 
 import argparse
@@ -23,6 +27,8 @@ def main() -> None:
     ap.add_argument("--backend", default="nano", choices=["nano", "mosse"])
     ap.add_argument("--otb", default=str(ROOT / "data/otb"))
     ap.add_argument("--out", default=str(ROOT / "results/otb"))
+    ap.add_argument("--extra", nargs=argparse.REMAINDER, default=[],
+                    help="remaining args passed through to track_sot")
     args = ap.parse_args()
 
     out_dir = Path(args.out)
@@ -41,7 +47,7 @@ def main() -> None:
         res_path = out_dir / f"{seq}_{args.backend}.txt"
         run = subprocess.run(
             [args.binary, f"--input={seq_dir}/img/%04d.jpg", f"--bbox={x},{y},{w},{h}",
-             f"--backend={args.backend}", f"--dump={res_path}", "--output="],
+             f"--backend={args.backend}", f"--dump={res_path}", "--output="] + args.extra,
             capture_output=True, text=True, check=True,
             cwd=ROOT)  # app model-path defaults are repo-relative
         fps = 0.0
