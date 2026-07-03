@@ -11,7 +11,7 @@ function(ctrk_add_test name)
   add_executable(${name} ${ARGN})
   target_link_libraries(${name} PRIVATE ctrk::common GTest::gtest_main opencv_core opencv_imgproc opencv_videoio)
   # Tests may reach into internal headers under core/src.
-  target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/core/src)
+  target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/core/src ${CMAKE_SOURCE_DIR}/tests)
   gtest_discover_tests(${name})
 endfunction()
 
@@ -22,3 +22,4 @@ ctrk_add_test(test_geometry test_geometry.cpp)
 ctrk_add_test(test_kalman test_kalman.cpp)
 ctrk_add_test(test_munkres test_munkres.cpp)
 ctrk_add_test(test_common_infra test_common_infra.cpp)
+ctrk_add_test(test_synth_e2e test_synth_e2e.cpp)
