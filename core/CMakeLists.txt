@@ -47,6 +47,7 @@ if(CTRK_WITH_ORT)
 
   add_library(ctrk_sot STATIC
     src/sot/nanotrack.cpp
+    src/sot/mosse.cpp
     src/sot/sot_tracker.cpp
   )
   add_library(ctrk::sot ALIAS ctrk_sot)

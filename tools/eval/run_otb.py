@@ -14,12 +14,13 @@ import numpy as np
 from sot_eval import evaluate, load_boxes
 
 ROOT = Path(__file__).resolve().parents[2]
-SEQS = ["Car4", "CarDark", "BlurCar2", "Human3", "Girl2", "DragonBaby"]
+SEQS = ["Car4", "CarDark", "BlurCar2", "Human3", "Girl2", "Woman"]
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--binary", default=str(ROOT / "build/apps/track_sot"))
+    ap.add_argument("--backend", default="nano", choices=["nano", "mosse"])
     ap.add_argument("--otb", default=str(ROOT / "data/otb"))
     ap.add_argument("--out", default=str(ROOT / "results/otb"))
     args = ap.parse_args()
@@ -35,10 +36,10 @@ def main() -> None:
         gt_path = seq_dir / "groundtruth_rect.txt"
         gt = load_boxes(gt_path)
         x, y, w, h = gt[0]
-        res_path = out_dir / f"{seq}.txt"
+        res_path = out_dir / f"{seq}_{args.backend}.txt"
         run = subprocess.run(
             [args.binary, f"--input={seq_dir}/img/%04d.jpg", f"--bbox={x},{y},{w},{h}",
-             f"--dump={res_path}", "--output="],
+             f"--backend={args.backend}", f"--dump={res_path}", "--output="],
             capture_output=True, text=True, check=True)
         fps = 0.0
         m = re.search(r"sot\s+\d+\s+([\d.]+)", run.stdout)

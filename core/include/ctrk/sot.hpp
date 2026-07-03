@@ -7,7 +7,14 @@
 
 namespace ctrk {
 
+enum class SotBackend : uint8_t {
+  NanoTrack,  // deep siamese, main line (needs the three model paths)
+  Mosse,      // hand-written correlation filter, NN-free CPU fallback
+};
+
 struct SotConfig {
+  SotBackend backend = SotBackend::NanoTrack;
+
   // NanoTrack v2 as three static graphs (tools/export/export_nanotrack.py).
   std::string backbone_z_path;  // template branch, run once at init
   std::string backbone_x_path;  // search branch, per frame

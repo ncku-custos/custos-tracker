@@ -15,6 +15,7 @@ const char* kUsage =
     "{help h      |       | show this message}"
     "{input i     |       | video file, image-sequence pattern, or camera index}"
     "{bbox b      |       | initial target box as x,y,w,h (pixels, first frame)}"
+    "{backend     | nano  | tracker backend: nano | mosse}"
     "{backbone-z  | models/cache/nanotrack_backbone_z.onnx | template branch ONNX}"
     "{backbone-x  | models/cache/nanotrack_backbone_x.onnx | search branch ONNX}"
     "{head        | models/cache/nanotrack_head.onnx | correlation head ONNX}"
@@ -44,6 +45,8 @@ int main(int argc, char** argv) {
                             cli.has("display"));
 
   ctrk::SotConfig cfg;
+  cfg.backend = cli.get<std::string>("backend") == "mosse" ? ctrk::SotBackend::Mosse
+                                                           : ctrk::SotBackend::NanoTrack;
   cfg.backbone_z_path = cli.get<std::string>("backbone-z");
   cfg.backbone_x_path = cli.get<std::string>("backbone-x");
   cfg.head_path = cli.get<std::string>("head");
