@@ -34,15 +34,27 @@ Models: `models/get_models.sh` (SHA256-verified, see `models/manifest.json`);
 `tools/export/quantize.py` for the INT8 QDQ variants (docs/DECISIONS.md D-0008).
 Datasets: `data/fetch_otb.sh`, `data/fetch_mot.sh`.
 
-## Speed knobs (measured in docs/RESULTS.md step 2)
+## Speed & quality knobs (measured in docs/RESULTS.md steps 2-3)
 
-- `track_tbd --threads=N` — detector intra-op threads (host-best: nproc−2).
-- `track_tbd --detect-every=N` — detector cadence with Kalman coasting between;
-  N=2 halves compute and *improves* identity metrics on MOT16-04.
-- `--model models/cache/yolov8n_640_int8.onnx` — INT8 detector, metric-parity
-  at 1.35x speed. INT8 + `--detect-every=2` is the recommended operating point.
-- `--no-spin` (TBD) — ~40% less CPU for ~3% latency; the SoC power posture.
-  SOT defaults to no-spin already (it is faster there).
+- `track_tbd --threads=N` — detector intra-op threads. Host-best is
+  hardware-specific: physical-core count on homogeneous CPUs (8 on the
+  Ryzen 7700), nproc−2 on the hybrid i5 — re-sweep per host (D-0011).
+- `track_tbd --detect-every=N` — detector cadence with Kalman coasting
+  between. The step-3 tentative-gate fix (S3.2) makes intervals safe for
+  fast movers; N=2 improves identity metrics on both eval sequences.
+- `--model models/cache/yolov8n_640_int8.onnx` — INT8 detector,
+  metric-parity-plus at ~1.4x speed; composes with every knob below.
+- `--gmc` — camera-motion compensation (S3.4): the moving-camera eval
+  jumps +5.4 MOTA / +9.7 IDF1 for ~2 ms/frame. Recommended whenever the
+  camera moves (i.e. on the drone); off by default for static mounts.
+- `--no-spin` (TBD) — ~40% less CPU for a few % latency; the SoC power
+  posture. SOT defaults to no-spin already.
+- `track_sot --reacquire` — detector-assisted re-acquisition, now guarded
+  by an HSV appearance veto (S3.3; `--reid=none` for pure geometry). Add
+  `--reid=nanoz --drift-every=5` to catch confident drift (the Girl2 mode).
+- NanoTrack v3 (`--backbone-z/x/--head` at the `nanotrackv3_*` exports +
+  `--penalty-k=0.138 --size-lr=0.348`) — big vehicle-tracking gains, person
+  regressions; v2 stays default (S3.7).
 
 ## Layout
 

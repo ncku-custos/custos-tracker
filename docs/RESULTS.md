@@ -669,3 +669,55 @@ would violate the keep-or-revert discipline (nothing measurable to keep),
 and the step-3 budget is better spent closing the ladder re-run (S3.10).
 Revisit when a drone-footage eval exists or SOT person-robustness becomes
 the binding constraint (v2 + re-ID currently holds the line there).
+
+## S3.10 — step-3 rollup (v0.3.0, 2026-07-03)
+
+Quality movement, step-2 baseline -> step-3 defaults (+ the GMC option),
+all deterministic evals on the re-anchored host (S3.0):
+
+| MOTA / IDSW / IDF1 | step-2 (v0.2.0) | v0.3.0 defaults | v0.3.0 + `--gmc` |
+|---|---|---|---|
+| MOT16-04 N=1 | 31.0 / 23 / 43.7 | **31.3 / 23 / 43.9** | 31.2 / 23 / 45.2 |
+| MOT16-04 N=2 | 29.2 / 18 / 44.4 | **29.9 / 18 / 44.9** | 29.9 / 19 / 44.1 |
+| MOT16-13 N=1 | 13.2 / 6 / 21.3 | 13.8 / 5 / 22.4 | **19.2 / 6 / 32.1** |
+| MOT16-13 N=2 | 9.3 / 2 / 16.0 | 14.7 / 7 / 23.5 | **18.5 / 5 / 30.7** |
+
+SOT: mini-OTB default unchanged at 0.631 by design (all SOT changes are
+inside `--reacquire` or opt-in); the M4 failure modes are fixed where they
+lived — Jogging wrong-relock 0.155 -> 0.558 (HSV veto, default in
+`--reacquire`), Girl2 confident drift 0.437 -> 0.455 (NanoZ drift check,
+opt-in). INT8 composes with everything (04 N=1: 31.2/17/45.7 —
+parity-plus; 13 + GMC: 19.6/31.4).
+
+Kept defaults: NSA (S3.1), tentative relax 0.3 + patience 1 (S3.2), HSV
+re-lock veto within `--reacquire` (S3.3). Kept opt-in: GMC (S3.4, the
+step's largest single win, priced at ~2 ms/frame), NanoZ drift check
+(S3.3), v3 model paths (S3.7, vehicle scenarios), appearance weight
+(S3.5, null), dual-template (S3.8, negative — do not enable), VisDrone
+model (S3.6, drone footage only). Negative results on the record: velocity
+seeding, HSV-as-drift-embedder, HSV appearance cost, dual-template, v3
+person regression, VisDrone-on-street — plus the covariance-symmetry
+post-mortem (S3.4).
+
+Final latency (3 reps, powersave, this host):
+
+| operating point | p50 | FPS |
+|---|---|---|
+| TBD default (fp32@640, 4 thr) | 24.98 ms | 40 |
+| TBD `--threads=8` | 17.05 ms | 59 |
+| TBD `--threads=8` INT8 | 12.38 ms | 81 |
+| TBD `--threads=8` INT8 `--detect-every=2` | ~6.2 ms eff. | ~160 |
+| — same + `--gmc` | ~8.1 ms eff. | ~123 |
+| SOT nano (default 2t no-spin) | 1.72 ms | 583 |
+
+Recommended operating points:
+- **Drone TBD**: `--threads=<physical cores> --model=..._int8.onnx
+  --detect-every=2 --gmc` — the camera always moves, and GMC at N=2 on the
+  moving-camera eval (18.3 MOTA / 30.2 IDF1 with INT8) beats every
+  non-GMC config while coasting at ~123 FPS effective. Drop `--gmc` only
+  on a static mount.
+- **Drone SOT**: defaults + `--reacquire` (HSV veto now guards re-locks);
+  add `--reid=nanoz --drift-every=5` when lookalike drift is the failure
+  mode observed.
+- Step-4 (SoC) must re-sweep threads/spin (D-0011) and re-run this table;
+  none of these latencies transfer.
