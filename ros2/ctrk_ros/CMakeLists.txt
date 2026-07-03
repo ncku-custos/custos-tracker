@@ -38,12 +38,39 @@ target_link_libraries(ctrk_ros_support PUBLIC
 )
 set_target_properties(ctrk_ros_support PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# All components live in ONE shared library: the ctrk log/profile sinks are
+# process-wide globals inside the statically linked core — one .so means one
+# copy shared by every composed node (docs/DECISIONS.md D-0016).
+add_library(ctrk_ros_components SHARED
+  src/tbd_node.cpp
+)
+target_link_libraries(ctrk_ros_components PUBLIC
+  ctrk_ros_support
+  rclcpp_components::component
+)
+rclcpp_components_register_node(ctrk_ros_components
+  PLUGIN "ctrk_ros::TbdNode"
+  EXECUTABLE ctrk_tbd_node
+)
+
+install(TARGETS ctrk_ros_components
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  # Tests locate repo models the same way core tests do (skip when absent).
+  get_filename_component(CTRK_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../.. ABSOLUTE)
+
   ament_add_gtest(test_params test/test_params.cpp)
   target_link_libraries(test_params ctrk_ros_support)
   ament_add_gtest(test_msg_convert test/test_msg_convert.cpp)
   target_link_libraries(test_msg_convert ctrk_ros_support)
+  ament_add_gtest(test_lifecycle_tbd test/test_lifecycle_tbd.cpp)
+  target_link_libraries(test_lifecycle_tbd ctrk_ros_components)
+  target_compile_definitions(test_lifecycle_tbd PRIVATE CTRK_REPO_ROOT="${CTRK_REPO_ROOT}")
 endif()
 
 ament_package()
