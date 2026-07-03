@@ -55,7 +55,7 @@ core/src/tbd         detector wrapper + SORT/ByteTrack association
 apps/                track_sot, track_tbd CLIs
 tools/               Python tooling only (model export, metric evaluation)
 tests/               gtest unit tests + synthetic-video e2e
-docs/                PLAN.md, DECISIONS.md, RESULTS.md
+docs/                PLAN.md, DECISIONS.md, RESULTS.md, ROADMAP.md (steps 3-4 handoff)
 ```
 
 ## License
