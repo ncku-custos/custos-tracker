@@ -639,3 +639,33 @@ sequence-level chaos elsewhere and is not worth an opt-in recommendation.
 enable.** The init-frozen `zf_` — and re-ID referencing it (D-0012) — is
 the right design; appearance ADAPTATION belongs to verified re-acquisition
 (S3.3), not to template mutation.
+
+## S3.9 — LightFC: sourcing de-risked, backend implementation deferred (2026-07-03, D-0014)
+
+The roadmap's stated schedule risk ("weights sourcing/export from a
+research repo") is retired — recon findings, so the next attempt starts
+from zero risk:
+
+- **License: MIT** (repo LiYunfengLYF/LightFC) — D-0006 compatible, no
+  AGPL complication (unlike the detector).
+- **Weights: sourced.** `output.zip` via gdown id
+  `1ns7NQJCt078547X483skqjX1qM1rBqLP`, sha256 `e24f87bd…c9fed3`; the
+  checkpoint inside (`lightfc_ep0400.pth.tar`, mobilnetv2_p_pwcorr…wiou
+  config) is sha256 `bc3a8cba…7490e`.
+- **Architecture is export-friendly**: `forward_backbone(z 1x3x128x128)`
+  once at init; `forward_tracking(z_feat, x 1x3x256x256)` per frame —
+  the same two-graph split our engine seam already runs. MobileNetV2
+  backbone (conv-only, D-0005-safe), pwcorr+SE fusion, center-style head.
+- **Known work items for the real attempt**: the `repn33` head blocks are
+  RepVGG-style and need deploy-mode branch fusion before export; template
+  crop factor 2.0 @128 / search 4.0 @256 with LightFC's own normalization
+  replace the NanoTrack subwindow math; the center head decodes boxes
+  differently from the BAN head (new postproc, no oracle — synth smoke
+  test + upstream raw-result comparison are the nets; upstream OTB raw
+  results ship in the same zip for exactly this).
+
+Deferred rather than rushed: a third backend without numerical validation
+would violate the keep-or-revert discipline (nothing measurable to keep),
+and the step-3 budget is better spent closing the ladder re-run (S3.10).
+Revisit when a drone-footage eval exists or SOT person-robustness becomes
+the binding constraint (v2 + re-ID currently holds the line there).

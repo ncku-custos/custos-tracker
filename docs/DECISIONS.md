@@ -173,3 +173,18 @@ default operating point and re-measure there. Engineering lesson pinned
 in S3.4: covariance congruences in float32 need re-symmetrization or
 NSA-small R exposes the Cholesky solve — any future state-transform
 feature (e.g. homography GMC) must keep the `(P+P')/2` line.
+
+## D-0014 — LightFC deferred with sourcing de-risked (2026-07-03)
+
+Step-3 item 8 (RESULTS.md S3.9). The scheduled risk — weights sourcing
+from a research repo — is retired: MIT license confirmed, checkpoint
+downloaded and SHA-pinned (gdown id + sha256 in S3.9), architecture
+verified export-friendly (two-graph split matching our engine seam,
+conv-only backbone). Implementation deferred anyway: the remaining work
+(RepVGG-style head fusion, bespoke crop/normalization/center-head
+postproc, no differential oracle) is a focused half-day-plus that would
+have shipped numerically unvalidated at the end of the step — against
+the keep-or-revert discipline. The concrete resume recipe lives in S3.9;
+the decision point for actually doing it is when drone-footage SOT evals
+exist or when mini-OTB person robustness (currently v2+re-ID's win over
+v3) becomes the binding constraint.
