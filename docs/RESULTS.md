@@ -84,3 +84,47 @@ overlays: `results/*.mp4` (gitignored; regenerate with the commands in this file
 history). Known cosmetic noise: duplicate ONNX schema warnings at startup when
 OpenCV-dnn and ONNX Runtime coexist in one process (each carries a libonnx copy) —
 harmless, filtered in scripts.
+
+# Step 2 — speed optimization (started 2026-07-03)
+
+Method: every change is hypothesis -> `scripts/bench.sh` before/after -> keep only
+if the p50 delta clears 2x the baseline stddev below; reverted experiments get
+their negative result recorded here. Quality gates for default-config changes:
+all tests green (incl. the cv::TrackerNano oracle and the YOLO golden tensor),
+mini-OTB mean AUC within 0.005 of 0.631, MOT16-04 MOTA within 0.2 pt of 31.0%.
+
+## S2.0 — fine-grained baseline (5 reps, powersave governor, unpinned)
+
+| scenario | p50 median | stddev | 2σ noise floor | FPS |
+|---|---|---|---|---|
+| tbd_mot16 (1080p, YOLOv8n@640+ByteTrack) | 43.78 ms | 0.66 | 1.3 ms | ~23 |
+| sot_nano_car4 (360x240) | 2.73 ms | 0.27 | 0.5 ms | ~366 |
+| sot_nano_1080p (MOT16-04 frames) | 3.65 ms | 0.06 | 0.12 ms | ~274 |
+| sot_mosse_car4 | 0.37 ms | 0.002 | — | ~2700 |
+
+Stage attribution (p50, representative run):
+
+| stage | tbd_mot16 | | stage | nano@240p | nano@1080p |
+|---|---|---|---|---|---|
+| det.preprocess | 1.33 ms | | sot.crop | 0.15 ms | **1.44 ms** |
+| det.infer | **41.09 ms** | | sot.blob | 0.07 ms | 0.07 ms |
+| det.decode | 0.46 ms | | sot.backbone_x | 1.47 ms | 1.59 ms |
+| assoc | 0.04 ms | | sot.head | 0.49 ms | 0.54 ms |
+| total | 43.46 ms | | sot.postproc | 0.004 ms | 0.004 ms |
+
+What the numbers dictate:
+- **TBD is 96% ORT session time.** Everything outside `det.infer` totals ~1.8 ms,
+  so quality-neutral work on preprocess/decode is bounded there; the ≤30 ms bar
+  depends on engine/thread tuning (S2.2), and the 30+ FPS targets on the
+  tradeoff ladder (resolution / detect-interval / INT8).
+- **SOT at 1080p pays 1.44 ms (39%) in `sot.crop`** — the full-frame `cv::mean`
+  for pad color plus whole-frame `copyMakeBorder`; the S2.1 subwindow rework
+  targets exactly this.
+- **nano_car4 is bimodal across runs (2.18 vs 2.73 ms)** — hybrid P/E-core
+  scheduling. SOT keep-or-revert decisions use P-core-pinned runs
+  (`CTRK_BENCH_TASKSET=0-3 scripts/bench.sh`); headline numbers stay unpinned.
+- `perf record` is unavailable on this host (perf_event_paranoid=4); stage
+  attribution comes from the in-process profile sink (`ctrk/profile.hpp`),
+  whose scopes cover >99% of each pipeline's fused-stage time.
+- Capture (sequential JPEG decode, ~5.6 ms @1080p) and encode are outside the
+  compute path but reported by `--bench-json` for completeness.
