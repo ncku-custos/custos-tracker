@@ -41,6 +41,7 @@ class ByteTracker {
     int time_since_update = 0;
     float score = 0.f;
     int class_id = -1;
+    std::vector<float> embedding;  // EMA appearance descriptor (S3.5); empty until first fill
   };
 
   void mark_matched(STrack& track, const Detection& det);

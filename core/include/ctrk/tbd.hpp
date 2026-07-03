@@ -37,6 +37,12 @@ struct AssocConfig {
   float tentative_gate_floor = 0.2f;       // stage-3 gate never relaxes below this IoU
   int tentative_patience = 1;              // extra detect-frame misses a tentative survives
   bool velocity_seed = false;              // seed newborn KF velocity at its first re-match
+  // Appearance term in the stage-1 association cost (RESULTS.md S3.5):
+  // cost = (1-w)*(1-IoU) + w*(1-cos(track EMA emb, det emb)), fused only
+  // for pairs that already pass the IoU gate and only when both sides carry
+  // an embedding. 0 = geometry-only (and detections are not embedded).
+  float appearance_weight = 0.f;
+  float embedding_ema = 0.9f;  // track-embedding update: ema*old + (1-ema)*new
 };
 
 // Camera-motion compensation (RESULTS.md S3.4): estimate the inter-frame

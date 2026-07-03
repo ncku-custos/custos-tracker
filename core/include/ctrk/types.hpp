@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 namespace ctrk {
 
@@ -51,6 +52,10 @@ struct Detection {
   BBox box;
   float score = 0.f;
   int class_id = -1;
+  // Optional appearance descriptor for association (RESULTS.md S3.5);
+  // empty = geometry-only. Producer-defined contents (the built-in TBD
+  // pipeline fills an L2-normalized HSV histogram when enabled).
+  std::vector<float> embedding;
 };
 
 }  // namespace ctrk

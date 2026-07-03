@@ -98,6 +98,46 @@ TEST(Coast, IdsStableThroughCrossingAtIntervalTwo) {
   EXPECT_EQ(final_out.size(), 2u);
 }
 
+// S3.5: appearance term in the stage-1 cost. Two same-size targets pass
+// each other; at the crossing the IoU costs are symmetric and geometry
+// alone picks an arbitrary (swap-prone) assignment — orthogonal embeddings
+// must keep the ids straight. Embeddings are injected directly (no image).
+TEST(Appearance, OrthogonalEmbeddingsPreventSwapAtCrossing) {
+  AssocConfig cfg;
+  cfg.appearance_weight = 0.5f;
+  cfg.n_init = 1;  // confirm immediately; the crossing is the point here
+  ByteTracker tracker(cfg);
+  const std::vector<float> red = {1, 0}, blue = {0, 1};
+
+  auto make = [&](float xa, float xb) {
+    Detection a = det(xa, 100, 40, 80, 0.9f);
+    a.embedding = red;
+    Detection b = det(xb, 100, 40, 80, 0.9f);
+    b.embedding = blue;
+    return std::vector<Detection>{a, b};
+  };
+
+  // Approach, overlap completely, separate: xa runs 100->180, xb 180->100.
+  int id_red = -1, id_blue = -1;
+  for (int f = 0; f <= 20; ++f) {
+    const float xa = 100.f + 4.f * static_cast<float>(f);
+    const float xb = 180.f - 4.f * static_cast<float>(f);
+    const auto out = tracker.update(make(xa, xb));
+    if (f == 0) {
+      ASSERT_EQ(out.size(), 2u);
+      id_red = out[0].id;  // matches dets order on the first frame
+      id_blue = out[1].id;
+    }
+    if (f == 20) {
+      // red ends at 180, blue at 100 — ids must have followed the colors.
+      for (const auto& t : out) {
+        if (t.id == id_red) EXPECT_NEAR(t.box.cx(), 180.f + 20.f, 10.f);
+        if (t.id == id_blue) EXPECT_NEAR(t.box.cx(), 100.f + 20.f, 10.f);
+      }
+    }
+  }
+}
+
 // RESULTS.md S2.3/S3.2: at detect-interval N a newborn track has no learned
 // velocity, its prediction stays put, and the 0.7 stage-3 gate kills it —
 // the target churns fresh ids forever and NEVER confirms (permanent FN).

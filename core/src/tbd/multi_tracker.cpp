@@ -1,5 +1,6 @@
 #include <algorithm>
 
+#include "common/appearance.hpp"
 #include "common/mat_view.hpp"
 #include "ctrk/profile.hpp"
 #include "ctrk/tbd.hpp"
@@ -61,7 +62,12 @@ std::vector<Track> MultiTracker::update(const FrameView& frame) {
   }
   impl_->until_detect = std::max(1, impl_->cfg.detect_interval) - 1;
 
-  const std::vector<Detection> dets = impl_->detector->detect(frame);
+  std::vector<Detection> dets = impl_->detector->detect(frame);
+  if (impl_->cfg.assoc.appearance_weight > 0.f) {
+    ProfileScope prof("embed");
+    const cv::Mat img = as_mat(frame);
+    for (auto& d : dets) d.embedding = hsv_embedding(img, d.box);
+  }
   ProfileScope prof("assoc");
   auto out = impl_->tracker.update(dets, dt, warp);
   if (track_gmc) {

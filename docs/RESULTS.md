@@ -521,3 +521,59 @@ detector. Estimator unit-tested on synthetic pans incl. the downscale path.
   target-centered (camera motion mostly cancels through the tracked
   position) and mini-OTB has no scenario isolating the effect; revisit on
   drone footage in step 4 if search-window loss shows up.
+
+## S3.5 — appearance cost in TBD association: null result with HSV, seam kept (2026-07-03)
+
+`Detection` gained an optional `embedding` (public plain-struct field,
+D-0001-compliant), `STrack` an EMA copy, and the stage-1 cost fuses
+`(1-w)(1-IoU) + w(1-cos)` for gate-passing pairs
+(`--appearance=<w>`, off default). The mechanism is proven by a unit test
+(orthogonal embeddings keep ids straight through a complete crossing that
+geometry alone swap-flips) and by wiring probes (embed stage 1.36 ms p50
+for ~50 dets; w=0.99 changes outputs). The measured verdict on real data
+is a clean NULL:
+
+- w ∈ {0.25, 0.5}: **digit-identical to baseline on every config**
+  (MOT16-04 and MOT16-13, N ∈ {1,2}, GMC on and off — 8 runs). The HSV
+  histograms of small street-scale pedestrians are too similar to flip a
+  single IoU-gated Munkres assignment.
+- w = 0.99 (appearance-dominant): slightly WORSE (MOT16-04 N=2 IDSW
+  18 -> 20, IDF1 44.9 -> 43.9) — when colour does overrule geometry here,
+  it is wrong more often than right.
+
+Kept: the association seam and the `Detection::embedding` contract (a
+future discriminative embedder — OSNet-class, or detector-derived features
+on the NPU — plugs in without touching the tracker); the HSV filler stays
+opt-in. Rejected: making HSV appearance a default association term. This
+mirrors D-0012's split verdict: colour separates two specific adjacent
+lookalikes (the SOT veto) but carries no marginal identity signal over
+IoU+GMC in crowd association at these scales.
+
+## S3.6 — VisDrone fine-tune: trained and exported; not for MOT16 (2026-07-03)
+
+The GPU unblock (D-0011) made ROADMAP item 9 cheap: yolov8n on VisDrone,
+80 epochs / imgsz 640 / batch 16 on the RTX 5060 took **~65 min**
+(vs "days of CPU training" on the step-2 host). Val: mAP50 0.309 /
+mAP50-95 0.174 (pedestrian 0.324, car 0.733 — in line with published
+yolov8n-VisDrone numbers). `export_yolo.py` now takes `--weights/--stem`
+(output-shape assert generalized to the class count; the default yolov8n
+path re-verified byte-identical tracking) ->
+`models/cache/yolov8n_visdrone_640.onnx` (1x14x8400, 10 classes; local
+export, never fetched, never default; AGPL D-0003 extends to fine-tuned
+weights).
+
+Measured honestly on the street-level eval (VisDrone class ids 0/0,1 =
+pedestrian/people; `--classes` ids are VisDrone's, not COCO's):
+
+| model @640 fp32, N=1 | MOT16-04 | MOT16-13 |
+|---|---|---|
+| COCO yolov8n (default) | **31.3** / 23 / 43.9, MOTP 0.176 | **13.8** / 5 / 22.4 |
+| VisDrone fine-tune | 28.7 / 71 / 37.5, MOTP 0.217 | 10.1 / 5 / 18.5 |
+
+The aerial fine-tune LOSES on eye-level street footage — worse
+localization (MOTP +0.04), 2x FP, IDSW 23 -> 71 on MOT16-04. Expected
+(VisDrone is small-object aerial imagery; the caveat was recorded before
+training) and the model's actual customer is step-4 drone footage, where
+it should be re-evaluated against COCO-yolov8n before any default choice.
+COCO stays the default everywhere. INT8/VisDrone-calibration deferred to
+step 4 alongside that evaluation (no MOT16 eval exists that it could win).

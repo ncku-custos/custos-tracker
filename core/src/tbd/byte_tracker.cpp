@@ -1,7 +1,9 @@
 #include "tbd/byte_tracker.hpp"
 
 #include <algorithm>
+#include <cmath>
 
+#include "common/appearance.hpp"
 #include "common/geometry.hpp"
 #include "common/munkres.hpp"
 
@@ -11,11 +13,14 @@ namespace {
 
 // IoU-gated Munkres. Returns (track_idx, det_idx) pairs whose IoU clears
 // min_iou; forbidden pairs enter the cost matrix as a large finite value and
-// are post-filtered (see munkres.hpp gating contract).
-std::vector<std::pair<int, int>> match_by_iou(const std::vector<BBox>& track_boxes,
-                                              const std::vector<int>& track_ids,
-                                              const std::vector<Detection>& dets,
-                                              const std::vector<int>& det_ids, float min_iou) {
+// are post-filtered (see munkres.hpp gating contract). When `track_embs` is
+// given (stage 1, S3.5) the cost of gate-passing pairs fuses an appearance
+// term: (1-w)*(1-IoU) + w*(1-cos) — appearance refines the ranking among
+// geometrically plausible pairs, never overrides the gate.
+std::vector<std::pair<int, int>> match_by_iou(
+    const std::vector<BBox>& track_boxes, const std::vector<int>& track_ids,
+    const std::vector<Detection>& dets, const std::vector<int>& det_ids, float min_iou,
+    const std::vector<const std::vector<float>*>* track_embs = nullptr, float app_weight = 0.f) {
   std::vector<std::pair<int, int>> matches;
   if (track_ids.empty() || det_ids.empty()) return matches;
 
@@ -23,8 +28,19 @@ std::vector<std::pair<int, int>> match_by_iou(const std::vector<BBox>& track_box
   std::vector<std::vector<float>> cost(track_ids.size(), std::vector<float>(det_ids.size()));
   for (size_t i = 0; i < track_ids.size(); ++i)
     for (size_t j = 0; j < det_ids.size(); ++j) {
-      const float overlap = iou(track_boxes[track_ids[i]], dets[det_ids[j]].box);
-      cost[i][j] = overlap >= min_iou ? 1.f - overlap : kForbidden;
+      const auto& det = dets[det_ids[j]];
+      const float overlap = iou(track_boxes[track_ids[i]], det.box);
+      if (overlap < min_iou) {
+        cost[i][j] = kForbidden;
+        continue;
+      }
+      float c = 1.f - overlap;
+      if (track_embs && app_weight > 0.f && !det.embedding.empty()) {
+        const std::vector<float>* emb = (*track_embs)[track_ids[i]];
+        if (emb && !emb->empty())
+          c = (1.f - app_weight) * c + app_weight * (1.f - cosine_similarity(*emb, det.embedding));
+      }
+      cost[i][j] = c;
     }
 
   const auto assignment = munkres_solve(cost);
@@ -53,6 +69,21 @@ void ByteTracker::mark_matched(STrack& track, const Detection& det) {
   // velocity from it instead of blending from the zero-velocity prior.
   if (cfg_.velocity_seed && track.hits == 1) track.kf.seed_velocity(det.box, eff_dt_);
   track.kf.update(det.box, cfg_.nsa ? 1.f - det.score : 1.f);
+  if (!det.embedding.empty()) {
+    if (track.embedding.size() != det.embedding.size()) {
+      track.embedding = det.embedding;
+    } else {
+      float norm = 0.f;
+      for (size_t i = 0; i < track.embedding.size(); ++i) {
+        track.embedding[i] =
+            cfg_.embedding_ema * track.embedding[i] + (1.f - cfg_.embedding_ema) * det.embedding[i];
+        norm += track.embedding[i] * track.embedding[i];
+      }
+      norm = std::sqrt(norm);
+      if (norm > 0.f)
+        for (auto& v : track.embedding) v /= norm;
+    }
+  }
   track.time_since_update = 0;
   track.hits++;
   track.score = det.score;
@@ -103,9 +134,17 @@ std::vector<Track> ByteTracker::update(const std::vector<Detection>& detections,
     (tracks_[i].state == TrackState::Tentative ? tentative_tracks : mature_tracks)
         .push_back(static_cast<int>(i));
 
-  // Stage 1: high-score dets vs confirmed + lost tracks.
+  // Stage 1: high-score dets vs confirmed + lost tracks (appearance-fused
+  // cost when enabled, S3.5).
+  std::vector<const std::vector<float>*> track_embs;
+  if (cfg_.appearance_weight > 0.f) {
+    track_embs.reserve(tracks_.size());
+    for (const auto& t : tracks_) track_embs.push_back(&t.embedding);
+  }
   const float stage1_min_iou = 1.f - cfg_.match_thresh_high;
-  auto matches = match_by_iou(predicted, mature_tracks, detections, high_dets, stage1_min_iou);
+  auto matches =
+      match_by_iou(predicted, mature_tracks, detections, high_dets, stage1_min_iou,
+                   cfg_.appearance_weight > 0.f ? &track_embs : nullptr, cfg_.appearance_weight);
   auto unmatched_mature = remove_matched(mature_tracks, matches, /*first=*/true);
   auto unmatched_high = remove_matched(high_dets, matches, /*first=*/false);
 
