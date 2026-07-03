@@ -68,19 +68,27 @@ echo "|---|---|---|---|---|---|"
 want() { [[ -z "$ONLY" || "$ONLY" == "$1" ]]; }
 
 # TBD: full MOT16-04 (1050 frames, 1920x1080), person class.
-want tbd_mot16 && run_scenario tbd_mot16 "detect+track" \
-  "$BUILD/apps/track_tbd" -i="$ROOT/data/mot/MOT16-04/img1/%06d.jpg" --classes=0 -o=
+if want tbd_mot16; then
+  run_scenario tbd_mot16 "detect+track" \
+    "$BUILD/apps/track_tbd" -i="$ROOT/data/mot/MOT16-04/img1/%06d.jpg" --classes=0 -o=
+fi
 
 # SOT nano: OTB Car4 (659 frames, 360x240), gt init box.
-want sot_nano_car4 && run_scenario sot_nano_car4 "sot" \
-  "$BUILD/apps/track_sot" -i="$ROOT/data/otb/Car4/img/%04d.jpg" -b=70,51,107,87 -o=
+if want sot_nano_car4; then
+  run_scenario sot_nano_car4 "sot" \
+    "$BUILD/apps/track_sot" -i="$ROOT/data/otb/Car4/img/%04d.jpg" -b=70,51,107,87 -o=
+fi
 
 # SOT nano at 1080p: MOT16-04 frames, pedestrian id=1 gt box from frame 1.
 # Latency scenario only (no GT scoring) - exposes full-frame subwindow costs.
-want sot_nano_1080p && run_scenario sot_nano_1080p "sot" \
-  "$BUILD/apps/track_sot" -i="$ROOT/data/mot/MOT16-04/img1/%06d.jpg" -b=1363,569,103,241 -o=
+if want sot_nano_1080p; then
+  run_scenario sot_nano_1080p "sot" \
+    "$BUILD/apps/track_sot" -i="$ROOT/data/mot/MOT16-04/img1/%06d.jpg" -b=1363,569,103,241 -o=
+fi
 
 # SOT MOSSE fallback: Car4.
-want sot_mosse_car4 && run_scenario sot_mosse_car4 "sot" \
-  "$BUILD/apps/track_sot" -i="$ROOT/data/otb/Car4/img/%04d.jpg" -b=70,51,107,87 \
-  --backend=mosse -o=
+if want sot_mosse_car4; then
+  run_scenario sot_mosse_car4 "sot" \
+    "$BUILD/apps/track_sot" -i="$ROOT/data/otb/Car4/img/%04d.jpg" -b=70,51,107,87 \
+    --backend=mosse -o=
+fi
