@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "ctrk/detector.hpp"
 #include "ctrk/types.hpp"
 
 namespace ctrk {
@@ -36,6 +37,21 @@ struct SotConfig {
   int lost_patience = 5;
 };
 
+// Detector-assisted re-acquisition, active while the state machine reports
+// Lost: candidates must match the class, sit within a radius that grows with
+// time-lost, and have a similar size to the last confidently-tracked box.
+// The best candidate re-initializes the tracker template (probation:
+// Unstable until the score proves the re-lock).
+struct ReacquireConfig {
+  int class_id = -1;              // required detector class; -1 accepts any
+  int detect_every = 3;           // detector cadence (frames) while Lost
+  float min_score = 0.4f;         // detector confidence floor for candidates
+  float size_low = 0.5f;          // candidate/last size ratio gate
+  float size_high = 2.f;
+  float base_radius_frac = 1.5f;  // search radius, in last-box diagonals...
+  float growth_per_frame = 0.05f; // ...growing per lost frame
+};
+
 // Single-object tracker facade. init() with a target box, then update() per
 // frame. Single-threaded, synchronous; one instance per thread.
 class SotTracker {
@@ -45,9 +61,12 @@ class SotTracker {
   SotTracker(SotTracker&&) noexcept;
   SotTracker& operator=(SotTracker&&) noexcept;
 
+  // Optional: enable re-acquisition while Lost. Takes ownership.
+  void enable_reacquire(std::unique_ptr<IDetector> detector, const ReacquireConfig& config);
+
   void init(const FrameView& frame, const BBox& target);
-  // score is the raw (pre-window) classifier peak — the lost-detection
-  // signal for M4. state is always Tracking until the M4 state machine.
+  // score is the raw model confidence (pre-window classifier peak for the
+  // siamese backend, PSR for MOSSE) — it drives the state machine.
   SotResult update(const FrameView& frame);
 
  private:

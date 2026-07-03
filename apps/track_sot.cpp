@@ -7,6 +7,7 @@
 
 #include "app_common.hpp"
 #include "common/mat_view.hpp"
+#include "ctrk/detector.hpp"
 #include "ctrk/sot.hpp"
 #include "ctrk/types.hpp"
 
@@ -20,6 +21,9 @@ const char* kUsage =
     "{backbone-z  | models/cache/nanotrack_backbone_z.onnx | template branch ONNX}"
     "{backbone-x  | models/cache/nanotrack_backbone_x.onnx | search branch ONNX}"
     "{head        | models/cache/nanotrack_head.onnx | correlation head ONNX}"
+    "{reacquire   |       | on Lost, re-acquire via detector (class/position/size gated)}"
+    "{det-model   | models/cache/yolov8n_640.onnx | detector ONNX for --reacquire}"
+    "{class       | 0     | required detector class for --reacquire (-1 = any)}"
     "{output o    | sot_out.mp4 | annotated output video ('' to disable)}"
     "{dump        |       | write per-frame 'x,y,w,h' results (OTB format, incl. init frame)}"
     "{display     |       | show a live window (never default: headless CI/drone)}";
@@ -54,6 +58,14 @@ int main(int argc, char** argv) {
   std::optional<ctrk::SotTracker> tracker;
   try {
     tracker.emplace(cfg);
+    if (cli.has("reacquire")) {
+      ctrk::Yolov8Config det;
+      det.model_path = cli.get<std::string>("det-model");
+      det.conf_thr = 0.25f;
+      ctrk::ReacquireConfig rc;
+      rc.class_id = cli.get<int>("class");
+      tracker->enable_reacquire(ctrk::make_yolov8_detector(det), rc);
+    }
   } catch (const std::exception& e) {
     std::fprintf(stderr, "tracker init failed: %s\n", e.what());
     return 1;
