@@ -613,3 +613,29 @@ Car4 (96-ch backbone), both far inside budget. Published VOT2018 EAO
 0.352 -> 0.449 did not transfer to mini-OTB persons; possible causes
 (training-set composition vs our person-heavy slice, not postproc — the
 math is verified against upstream) noted for the record.
+
+## S3.8 — dual-template: decisively negative, frozen template vindicated (2026-07-03)
+
+Every K confident frames, the tracked box is re-embedded through the
+template branch and the head receives `b*zf_frozen + (1-b)*zf_refreshed`
+(`--template-every/--template-blend`, off = bit-identical, one extra
+z-pass per refresh). Hypothesis: adaptation helps appearance-change
+sequences (Girl2, Woman, CarDark). Swept K ∈ {10, 25, 50} × b ∈ {0.3, 0.5}
+on mini-OTB:
+
+| mean AUC | b=0.3 | b=0.5 |
+|---|---|---|
+| K=10 | 0.448 | 0.465 |
+| K=25 | 0.412 | 0.522 |
+| K=50 | 0.551 | 0.552 |
+
+Baseline: **0.631**. Every cell is a heavy regression — textbook
+template-update drift reinforcement: each refresh embeds a slightly
+polluted crop, the blend rewards whatever the tracker currently believes,
+and errors compound (Girl2 collapses to 0.051 at K=25/b=0.3). The lone
+per-sequence win (CarDark 0.502 -> 0.623 at K=25/b=0.5) rides with
+sequence-level chaos elsewhere and is not worth an opt-in recommendation.
+**Kept off-default as a gated experiment surface (like `--dnnl`); do not
+enable.** The init-frozen `zf_` — and re-ID referencing it (D-0012) — is
+the right design; appearance ADAPTATION belongs to verified re-acquisition
+(S3.3), not to template mutation.

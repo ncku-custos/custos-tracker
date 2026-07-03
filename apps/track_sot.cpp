@@ -26,6 +26,8 @@ const char* kUsage =
     "{penalty-k   | 0.055 | postproc size/ratio penalty (v3 upstream: 0.138, S3.7)}"
     "{window-influence | 0.455 | Hann window blend weight}"
     "{size-lr     | 0.37  | size update learning rate (v3 upstream: 0.348)}"
+    "{template-every | 0 | dual-template refresh interval, frames (0 = off, S3.8)}"
+    "{template-blend | 0.5 | weight of the FROZEN template in the dual blend}"
     "{spin        |       | re-enable ORT pool busy-waiting (default off: slower AND hungrier)}"
     "{dnnl        |       | experimental oneDNN execution provider}"
     "{reacquire   |       | on Lost, re-acquire via detector (class/position/size gated)}"
@@ -71,6 +73,8 @@ int main(int argc, char** argv) {
   cfg.penalty_k = cli.get<float>("penalty-k");
   cfg.window_influence = cli.get<float>("window-influence");
   cfg.size_lr = cli.get<float>("size-lr");
+  cfg.template_update_interval = cli.get<int>("template-every");
+  cfg.template_blend = cli.get<float>("template-blend");
   if (cli.has("spin")) cfg.engine.allow_spinning = true;
   cfg.engine.use_dnnl = cli.has("dnnl");
   const std::string reid = cli.get<std::string>("reid");

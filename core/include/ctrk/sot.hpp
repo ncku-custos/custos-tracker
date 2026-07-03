@@ -42,6 +42,15 @@ struct SotConfig {
   float lost_score_thr = -1.f;
   int lost_patience = 5;
 
+  // Dual-template experiment (RESULTS.md S3.8): every K confident frames,
+  // re-embed the tracked box as a second template and feed the head a blend
+  // of frozen-init and refreshed features. 0 = off (single frozen template,
+  // bit-identical). The frozen anchor resists drift pollution; the refresh
+  // adapts to appearance change.
+  int template_update_interval = 0;   // K frames between refreshes; 0 = off
+  float template_refresh_thr = 0.7f;  // only refresh from frames scoring at least this
+  float template_blend = 0.5f;        // weight of the FROZEN template in the mix
+
   // Appearance verification (RESULTS.md S3.3). Two embedders: an HSV H-S
   // colour histogram (backend-free, zero models) and the NanoTrack template
   // branch reused on candidate crops (nano backend only, zero new models).

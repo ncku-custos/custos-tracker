@@ -105,6 +105,8 @@ void NanoTracker::init(const cv::Mat& image, const BBox& target) {
   sz_w_ = target.w;
   sz_h_ = target.h;
   img_size_ = image.size();
+  zf_mix_.clear();
+  since_refresh_ = 0;
 
   const float sum = sz_w_ + sz_h_;
   const float w_ext = sz_w_ + cfg_.context_amount * sum;
@@ -164,7 +166,8 @@ SotResult NanoTracker::update(const cv::Mat& image) {
   {
     ProfileScope prof("sot.head");
     const auto& hin = head_->input_descs();
-    outs = head_->run({{"input1", hin[0].shape, zf_.data()}, {"input2", hin[1].shape, xf[0].data}});
+    const float* z = zf_mix_.empty() ? zf_.data() : zf_mix_.data();
+    outs = head_->run({{"input1", hin[0].shape, z}, {"input2", hin[1].shape, xf[0].data}});
   }
   ProfileScope prof("sot.postproc");
   const float* cls = outs[0].data;  // [1,2,S,S]
@@ -234,6 +237,18 @@ SotResult NanoTracker::update(const cv::Mat& image) {
   result.box = {pos_x_ - sz_w_ * 0.5f, pos_y_ - sz_h_ * 0.5f, sz_w_, sz_h_};
   result.score = best_score;  // raw classifier peak, the lost-detection signal
   result.state = SotState::Tracking;
+
+  // Dual-template refresh (S3.8): every K frames, if this frame is
+  // confident, re-embed the tracked box and blend with the frozen template.
+  // One extra z-graph pass per refresh; off (interval 0) is bit-identical.
+  if (cfg_.template_update_interval > 0 && ++since_refresh_ >= cfg_.template_update_interval &&
+      result.score >= cfg_.template_refresh_thr) {
+    since_refresh_ = 0;
+    const std::vector<float> zf2 = embed(image, result.box);
+    zf_mix_.resize(zf_.size());
+    const float b = cfg_.template_blend;
+    for (size_t i = 0; i < zf_.size(); ++i) zf_mix_[i] = b * zf_[i] + (1.f - b) * zf2[i];
+  }
   return result;
 }
 

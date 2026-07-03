@@ -53,6 +53,8 @@ class NanoTracker {
   int score_size_ = 0;
 
   std::vector<float> zf_;      // template features, frozen at init
+  std::vector<float> zf_mix_;  // dual-template blend (S3.8); empty = use zf_
+  int since_refresh_ = 0;
   std::vector<float> x_blob_;  // reusable search-branch input
   float pos_x_ = 0, pos_y_ = 0, sz_w_ = 0, sz_h_ = 0;
   cv::Size img_size_;
