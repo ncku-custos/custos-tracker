@@ -12,14 +12,18 @@
 //           (apps/app_common.cpp), so the tracker's KF dt sequence matches
 //           the CLI run digit for digit.
 //   clock — node clock now() (for latency measurements).
+//
+// Frames are read through cv::VideoCapture — NOT cv::imread — because the two
+// decode the same JPEG differently (different backend/IDCT; measured 62% of
+// MOT16 pixels off by up to 29). VideoCapture is what the CLI VideoSource
+// uses, and pixel identity is half of the S4.1 parity contract.
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <string>
 
-#include <opencv2/imgcodecs.hpp>
+#include <opencv2/videoio.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -32,7 +36,7 @@ class FramesPlayerNode : public rclcpp::Node {
       : Node("ctrk_frames_player", options) {
     path_ = declare_parameter<std::string>("path", "");
     if (path_.empty()) throw std::invalid_argument("frames_player: 'path' parameter is required");
-    fps_ = declare_parameter<double>("fps", 30.0);
+    fps_ = declare_parameter<double>("fps", 0.0);  // 0 = auto: CAP_PROP_FPS clamped, else 30
     mode_ = declare_parameter<std::string>("mode", "rate");
     if (mode_ != "rate" && mode_ != "lockstep")
       throw std::invalid_argument("frames_player: mode must be 'rate' or 'lockstep'");
@@ -46,12 +50,15 @@ class FramesPlayerNode : public rclcpp::Node {
       throw std::invalid_argument("frames_player: stamp_source must be 'index' or 'clock'");
     loop_ = declare_parameter<bool>("loop", false);
     frame_limit_ = static_cast<int>(declare_parameter<int64_t>("frame_limit", 0));
-    file_index_ = static_cast<int>(declare_parameter<int64_t>("start_index", -1));
     exit_on_done_ = declare_parameter<bool>("exit_on_done", false);
     const double start_delay = declare_parameter<double>("start_delay_s", 0.5);
 
     image_pub_ = create_publisher<sensor_msgs::msg::Image>("image", rclcpp::QoS(10).reliable());
-    if (file_index_ < 0) file_index_ = probe_start_index();
+    if (!cap_.open(path_)) throw std::invalid_argument("frames_player: cannot open " + path_);
+    if (fps_ <= 0.0) {  // auto: the VideoSource fps fallback logic
+      const double probed = cap_.get(cv::CAP_PROP_FPS);
+      fps_ = (probed > 1.0 && probed < 1000.0) ? probed : 30.0;
+    }
 
     if (mode_ == "lockstep") {
       ack_sub_ = create_generic_subscription(
@@ -63,15 +70,6 @@ class FramesPlayerNode : public rclcpp::Node {
   }
 
  private:
-  int probe_start_index() const {
-    for (int idx : {0, 1}) {
-      char buf[1024];
-      std::snprintf(buf, sizeof(buf), path_.c_str(), idx);
-      if (!cv::imread(buf, cv::IMREAD_COLOR).empty()) return idx;
-    }
-    throw std::invalid_argument("frames_player: no frame at index 0 or 1 for pattern " + path_);
-  }
-
   // Wait until the tracker's subscription is matched (it appears at
   // on_activate) and the settle delay passed, then kick off frame one.
   void on_wait_tick() {
@@ -105,15 +103,9 @@ class FramesPlayerNode : public rclcpp::Node {
     if (done_) return;
     if (frame_limit_ > 0 && published_ >= frame_limit_) return finish();
 
-    char buf[1024];
-    std::snprintf(buf, sizeof(buf), path_.c_str(), file_index_);
-    cv::Mat frame = cv::imread(buf, cv::IMREAD_COLOR);
-    if (frame.empty()) {
-      if (loop_ && published_ > 0) {
-        file_index_ = probe_start_index();
-        std::snprintf(buf, sizeof(buf), path_.c_str(), file_index_);
-        frame = cv::imread(buf, cv::IMREAD_COLOR);
-      }
+    cv::Mat frame;
+    if (!cap_.read(frame) || frame.empty()) {
+      if (loop_ && published_ > 0 && cap_.open(path_)) cap_.read(frame);
       if (frame.empty()) return finish();
     }
 
@@ -135,7 +127,6 @@ class FramesPlayerNode : public rclcpp::Node {
     }
     image_pub_->publish(std::move(msg));
     ++published_;
-    ++file_index_;
   }
 
   void finish() {
@@ -148,9 +139,10 @@ class FramesPlayerNode : public rclcpp::Node {
   }
 
   std::string path_, mode_, lockstep_topic_, lockstep_type_, stamp_source_;
+  cv::VideoCapture cap_;
   double fps_ = 30.0, rate_hz_ = 30.0, lockstep_timeout_s_ = 5.0;
   bool loop_ = false, exit_on_done_ = false, done_ = false;
-  int frame_limit_ = 0, file_index_ = -1, published_ = 0;
+  int frame_limit_ = 0, published_ = 0;
   rclcpp::Time start_deadline_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
   rclcpp::GenericSubscription::SharedPtr ack_sub_;

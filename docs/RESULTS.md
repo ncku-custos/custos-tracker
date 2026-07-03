@@ -721,3 +721,67 @@ Recommended operating points:
   mode observed.
 - Step-4 (SoC) must re-sweep threads/spin (D-0011) and re-run this table;
   none of these latencies transfer.
+
+# Step 4 — ROS2 Lyrical packaging (started 2026-07-03)
+
+Scope (docs/ROADMAP.md step-4 handoff, plan-mode session 2026-07-03): wrap
+the ROS-free core in composable lifecycle nodes consumed via
+`find_package(ctrk)`; the deferred capture/infer/draw pipelining lands as
+executor/composition measurements (S4.2). No core tracking-default changes
+— the step-3 quality gates hold by construction, and S4.1 proves it
+end-to-end. SoC items (vendor INT8, thread re-sweep, GMC default flip)
+stay out of scope; only their seams are built (params, profiles).
+
+## S4.0 — environment + packaging notes (2026-07-03)
+
+- ROS2 Lyrical (rclcpp 32.0.0) preinstalled at /opt/ros/lyrical on the
+  S3.0 host; only `ros-lyrical-vision-msgs` needed installing. colcon,
+  rosdep, ament, launch_testing, rosbag2 all present.
+- `find_package(ctrk)` gap closed: config-file package (ctrkConfig.cmake +
+  version file, `find_dependency` OpenCV/onnxruntime) generated at install;
+  EXPORT_NAME aligned so consumers link the same `ctrk::<name>` targets as
+  in-tree code. Verified by a standalone scratch consumer. Project VERSION
+  aligned with the release tags at 0.4.0 (was still 0.1.0).
+- Build flow (D-0015): core installed to `ros2/install-ctrk` by
+  `scripts/ros_check.sh`, colcon runs with cwd `ros2/` (its build dirs stay
+  out of the root cmake tree). `ctrk` is deliberately NOT a rosdep key.
+- rcl quirk: a params YAML whose `ros__parameters` mapping is all comments
+  fails to parse ("Cannot have a value before ros__parameters") — the
+  reference profiles pin the two node-level QoS defaults to stay valid.
+- 22 colcon gtest cases, 0 skipped on this host; the model-free CI anchor
+  is a full pub/sub e2e through the SOT component with the MOSSE backend.
+
+## S4.1 — CLI parity gate: digit-identical through the graph (2026-07-03)
+
+Hypothesis: the node path reproduces the CLI byte-for-byte, because the
+image callback wraps the same pixels zero-copy, the stamps replicate the
+VideoSource truncation `int64(idx/fps*1e9)` bit-exactly, and the dump uses
+the same snprintf. Transport made drop-proof by construction: lockstep
+player (frame N+1 only after the tracker's output for N) + reliable QoS +
+line-count assertion. `scripts/ros_parity.sh` (gating, per milestone).
+
+| run | frames | result |
+|---|---|---|
+| TBD MOT16-04 (defaults, classes=0) | 1050 (17034 rows) | **digit-identical** |
+| SOT nano: Car4/CarDark/BlurCar2/Jogging/Girl2/Woman | 659/393/585/307/1500/597 | **all digit-identical** |
+| drone profile MOT16-13 (gmc sparse_flow, N=2) — non-gating | 750 (2378 rows) | **digit-identical** (GMC deterministic through the node) |
+
+Re-scores from the ROS dumps land on the anchors exactly: MOT16-04
+MOTA 31.3 / IDSW 23 / IDF1 43.9; mini-OTB mean AUC 0.631 (Car4 0.719,
+CarDark 0.502, BlurCar2 0.809, Jogging 0.684, Girl2 0.437, Woman 0.636).
+
+Two real bugs found on the way (both would silently corrupt any
+ROS-vs-CLI comparison, fixed in the player):
+
+1. **cv::imread and cv::VideoCapture decode the same JPEG differently.**
+   The FFMPEG backend claims `%d` patterns; its JPEG path disagrees with
+   imread's on 62% of MOT16-04 frame-1 pixels (up to ±29/255). First
+   player build used imread → tracks near-identical but wrong in the
+   second decimal. Fix: the player reads through cv::VideoCapture exactly
+   like the CLI VideoSource.
+2. **FFmpeg reports 25 fps for image patterns** (image2 demuxer default),
+   so every CLI anchor was produced with stamps AND `nominal_fps` at 25,
+   not 30. dt was still 1.0 frame — self-consistent — but a node left at
+   `nominal_fps: 30` computes dt 1.2 and drifts in the last digit. The
+   parity script pins player fps and node nominal_fps together; deployment
+   note: **nominal_fps must match the camera rate** or KF dt is scaled.

@@ -17,9 +17,10 @@ find_package(ctrk_interfaces REQUIRED)
 # Not a rosdep key: installed by scripts/ros_check.sh into ros2/install-ctrk
 # and found through CMAKE_PREFIX_PATH (docs/DECISIONS.md D-0015).
 find_package(ctrk 0.4 REQUIRED)
-# frames_player reads image sequences, draw_node rasterizes boxes; the ctrk
-# Config only pulls the components the core libs link.
-find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs)
+# frames_player reads image sequences via VideoCapture (imread decodes JPEGs
+# DIFFERENTLY — parity!), draw_node rasterizes boxes, the composition test
+# writes fixture frames; the ctrk Config only pulls what the core libs link.
+find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs videoio)
 
 # Support layer (param->config mapping, msg conversion, sink bridge) as an
 # object collection the component library and the unit tests share.
@@ -56,6 +57,7 @@ target_link_libraries(ctrk_ros_components PUBLIC
   opencv_core
   opencv_imgproc
   opencv_imgcodecs
+  opencv_videoio
 )
 rclcpp_components_register_node(ctrk_ros_components
   PLUGIN "ctrk_ros::TbdNode"
