@@ -15,11 +15,14 @@ outcome is printed and recorded in docs/DECISIONS.md.
 
 M2 spike verdict (v3): nanotrackv3 head emits 15x15 score maps;
 cv::TrackerNano hardcodes a 16x16 grid, so v3 cannot ride the oracle path.
-v2 ships; v3 needs bespoke postproc and is deferred to step 3.
+v2 ships; the C++ postproc grid is head-shape-driven since step 3
+(RESULTS.md S3.7), so v3 exports run behind explicit --backbone-z/x/--head
+model paths.
 
-Usage: tools/.venv/bin/python tools/export/export_nanotrack.py
+Usage: tools/.venv/bin/python tools/export/export_nanotrack.py [--version v2|v3]
 """
 
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -30,8 +33,28 @@ from onnxsim import simplify
 
 ROOT = Path(__file__).resolve().parents[2]
 CACHE = ROOT / "models" / "cache"
-BACKBONE = CACHE / "nanotrackv2_nanotrack_backbone_sim.onnx"
-HEAD = CACHE / "nanotrackv2_nanotrack_head_sim.onnx"
+
+# Per-version source files (models/get_models.sh) and the shapes each emitted
+# graph must produce when RUN (not declared). v3: 96-ch features, 15x15 head
+# maps (D-0005a: no cv::TrackerNano oracle; opset 14 HardSwish stays).
+VERSIONS = {
+    "v2": {
+        "backbone": "nanotrackv2_nanotrack_backbone_sim.onnx",
+        "head": "nanotrackv2_nanotrack_head_sim.onnx",
+        "prefix": "nanotrack",
+        "z_out": {"output": [1, 48, 8, 8]},
+        "x_out": {"output": [1, 48, 16, 16]},
+        "head_out": {"output1": [1, 2, 16, 16], "output2": [1, 4, 16, 16]},
+    },
+    "v3": {
+        "backbone": "nanotrackv3_nanotrack_backbone.onnx",
+        "head": "nanotrackv3_nanotrack_head.onnx",
+        "prefix": "nanotrackv3",
+        "z_out": {"output": [1, 96, 8, 8]},
+        "x_out": {"output": [1, 96, 16, 16]},
+        "head_out": {"output1": [1, 2, 15, 15], "output2": [1, 4, 15, 15]},
+    },
+}
 
 
 def session(model: onnx.ModelProto) -> ort.InferenceSession:
@@ -92,14 +115,18 @@ def emit(src: Path, dst: Path, hw: int | None, expect_outputs: dict) -> None:
 
 
 def main() -> None:
-    assert BACKBONE.exists() and HEAD.exists(), "run models/get_models.sh first"
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--version", choices=sorted(VERSIONS), default="v2")
+    v = VERSIONS[ap.parse_args().version]
+
+    backbone, head = CACHE / v["backbone"], CACHE / v["head"]
+    assert backbone.exists() and head.exists(), "run models/get_models.sh first"
     print("backbone_z (template, 127):")
-    emit(BACKBONE, CACHE / "nanotrack_backbone_z.onnx", 127, {"output": [1, 48, 8, 8]})
+    emit(backbone, CACHE / f"{v['prefix']}_backbone_z.onnx", 127, v["z_out"])
     print("backbone_x (search, 255):")
-    emit(BACKBONE, CACHE / "nanotrack_backbone_x.onnx", 255, {"output": [1, 48, 16, 16]})
+    emit(backbone, CACHE / f"{v['prefix']}_backbone_x.onnx", 255, v["x_out"])
     print("head:")
-    emit(HEAD, CACHE / "nanotrack_head.onnx", None,
-         {"output1": [1, 2, 16, 16], "output2": [1, 4, 16, 16]})
+    emit(head, CACHE / f"{v['prefix']}_head.onnx", None, v["head_out"])
     print("export: contract verified")
 
 

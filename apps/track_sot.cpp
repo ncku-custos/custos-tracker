@@ -23,6 +23,9 @@ const char* kUsage =
     "{backbone-x  | models/cache/nanotrack_backbone_x.onnx | search branch ONNX}"
     "{head        | models/cache/nanotrack_head.onnx | correlation head ONNX}"
     "{threads     | 2     | intra-op threads per graph}"
+    "{penalty-k   | 0.055 | postproc size/ratio penalty (v3 upstream: 0.138, S3.7)}"
+    "{window-influence | 0.455 | Hann window blend weight}"
+    "{size-lr     | 0.37  | size update learning rate (v3 upstream: 0.348)}"
     "{spin        |       | re-enable ORT pool busy-waiting (default off: slower AND hungrier)}"
     "{dnnl        |       | experimental oneDNN execution provider}"
     "{reacquire   |       | on Lost, re-acquire via detector (class/position/size gated)}"
@@ -65,6 +68,9 @@ int main(int argc, char** argv) {
   cfg.backbone_x_path = cli.get<std::string>("backbone-x");
   cfg.head_path = cli.get<std::string>("head");
   cfg.engine.intra_op_threads = cli.get<int>("threads");
+  cfg.penalty_k = cli.get<float>("penalty-k");
+  cfg.window_influence = cli.get<float>("window-influence");
+  cfg.size_lr = cli.get<float>("size-lr");
   if (cli.has("spin")) cfg.engine.allow_spinning = true;
   cfg.engine.use_dnnl = cli.has("dnnl");
   const std::string reid = cli.get<std::string>("reid");

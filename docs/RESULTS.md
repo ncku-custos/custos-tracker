@@ -577,3 +577,39 @@ training) and the model's actual customer is step-4 drone footage, where
 it should be re-evaluated against COCO-yolov8n before any default choice.
 COCO stays the default everywhere. INT8/VisDrone-calibration deferred to
 step 4 alongside that evaluation (no MOT16 eval exists that it could win).
+
+## S3.7 — NanoTrack v3: vehicles up sharply, persons down; v2 stays default (2026-07-03)
+
+Two-commit path per plan. (1) The postproc grid is now derived from the
+loaded head graph (`score_size_` from [1,2,S,S]) — v2 proven bit-identical
+(oracle green, AUC 0.631 exact); the shared formula is parity-correct
+because upstream's points are zero-centered and the kInstance/2 offset
+cancels in diff_xs. (2) `export_nanotrack.py --version v3` emits the three
+static v3 graphs (96-ch features, 15x15 head, opset 14 HardSwish per
+D-0005a) from the SHA-pinned weights; run-verified shapes. v3 selects
+purely via `--backbone-z/x/--head`; no oracle exists (D-0005a) so a synth
+absolute-tracking smoke test guards the path. The upstream v3 constants
+(penalty_k 0.138, lr 0.348 — configv3.yaml) are NOT cv::TrackerNano's
+(0.055/0.37) and matter: v3 with v2 constants scores 0.622 (worse than
+v2). New `--penalty-k/--window-influence/--size-lr` flags expose them.
+
+| AUC (prec@20) | v2 default | v3 + upstream constants |
+|---|---|---|
+| Car4 | 0.719 (0.974) | **0.827** (1.000) |
+| CarDark | 0.502 (0.659) | **0.713** (1.000) |
+| BlurCar2 | 0.809 (1.000) | 0.778 (0.995) |
+| Jogging | 0.684 (0.984) | 0.619 (0.997) |
+| Girl2 | 0.437 (0.616) | 0.392 (0.557) |
+| Woman | 0.636 (0.998) | 0.545 (0.940) |
+| **MEAN** | 0.631 (0.872) | **0.646 (0.915)** |
+
+Verdict: **v2 stays the default.** The +0.015 mean is below the +0.02
+adoption bar and composed entirely of car-sequence gains (+0.11/+0.21)
+against regressions on all four person sequences (Woman −0.09). For the
+drone use-case the car result is genuinely interesting — vehicle-centric
+step-4 scenarios should try the v3 model paths + constants — but a default
+must not trade person tracking away. Latency: v3 ≈ 430 fps vs v2 ≈ 580 on
+Car4 (96-ch backbone), both far inside budget. Published VOT2018 EAO
+0.352 -> 0.449 did not transfer to mini-OTB persons; possible causes
+(training-set composition vs our person-heavy slice, not postproc — the
+math is verified against upstream) noted for the record.

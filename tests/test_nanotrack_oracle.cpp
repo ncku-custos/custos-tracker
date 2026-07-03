@@ -102,6 +102,38 @@ TEST(NanotrackOracle, TracksSynthTargetAbsolutely) {
   EXPECT_GT(mean_iou, 0.5f) << "tracker lost the synthetic target";
 }
 
+// v3 has no cv::TrackerNano oracle (D-0005a: 15x15 head) — this synthetic
+// absolute-tracking check is its smoke net (S3.7). Skips when the v3
+// exports are absent.
+TEST(NanotrackV3, TracksSynthTargetAbsolutely) {
+  for (const char* f :
+       {"nanotrackv3_backbone_z.onnx", "nanotrackv3_backbone_x.onnx", "nanotrackv3_head.onnx"})
+    if (!std::filesystem::exists(cache(f)))
+      GTEST_SKIP() << "run tools/export/export_nanotrack.py --version v3";
+
+  synth::Options opt;
+  opt.frames = 60;
+  synth::Sequence seq(opt,
+                      {{.box0 = {100, 150, 60, 90}, .vx = 3.f, .vy = 0.5f, .color = {0, 80, 220}}});
+
+  SotConfig cfg;
+  cfg.backbone_z_path = cache("nanotrackv3_backbone_z.onnx");
+  cfg.backbone_x_path = cache("nanotrackv3_backbone_x.onnx");
+  cfg.head_path = cache("nanotrackv3_head.onnx");
+  cfg.penalty_k = 0.138f;  // upstream v3 constants (S3.7)
+  cfg.size_lr = 0.348f;
+  SotTracker tracker(cfg);
+  tracker.init(as_frame_view(seq.frame(0), 0), seq.gt(0)[0]);
+
+  float mean_iou = 0.f;
+  for (int t = 1; t < seq.frames(); ++t) {
+    const cv::Mat f = seq.frame(t);
+    mean_iou += iou(tracker.update(as_frame_view(f, t)).box, seq.gt(t)[0]);
+  }
+  mean_iou /= static_cast<float>(seq.frames() - 1);
+  EXPECT_GT(mean_iou, 0.5f) << "v3 pipeline lost the synthetic target";
+}
+
 // NanoTracker::embed replicates init()'s crop geometry exactly, so embedding
 // the init box must reproduce the stored template features bit-for-bit,
 // while a background crop must be measurably less similar (S3.3 re-ID).
