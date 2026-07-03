@@ -34,6 +34,8 @@ def main() -> None:
             print(f"{seq:<16} MISSING (run data/fetch_otb.sh)")
             continue
         gt_path = seq_dir / "groundtruth_rect.txt"
+        if not gt_path.exists():  # two-target sequences (Jogging): track target 1
+            gt_path = seq_dir / "groundtruth_rect.1.txt"
         gt = load_boxes(gt_path)
         x, y, w, h = gt[0]
         res_path = out_dir / f"{seq}_{args.backend}.txt"

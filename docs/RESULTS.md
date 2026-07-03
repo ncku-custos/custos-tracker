@@ -16,16 +16,39 @@ re-annotation swap pending network access — flagged in fetch_mot.sh). High FN 
 COCO-pretrained nano detector on small/occluded pedestrians — expected at this stage;
 VisDrone/finetune is step 3.
 
-## M2 — SOT on mini-OTB (pending)
+## M2 — NanoTrack v2 on mini-OTB (2026-07-03, host CPU, 3 static ORT graphs)
 
-| Sequence | Success AUC | Precision@20px | FPS |
-|---|---|---|---|
+| Sequence | AUC | prec@20 | mIoU | FPS |
+|---|---|---|---|---|
+| Car4 | 0.719 | 0.974 | 0.731 | 485 |
+| CarDark | 0.502 | 0.659 | 0.511 | 412 |
+| BlurCar2 | 0.809 | 1.000 | 0.825 | 386 |
+| Jogging | 0.684 | 0.984 | 0.694 | 386 |
+| Girl2 | 0.437 | 0.627 | 0.437 | 411 |
+| Woman | 0.636 | 0.998 | 0.642 | 432 |
+| **MEAN** | **0.631** | **0.874** | 0.640 | ~420 |
 
-Acceptance: differential vs cv::TrackerNano median IoU >= 0.9; mean AUC >= 0.55; >= 80 FPS.
+Acceptance: differential vs cv::TrackerNano median IoU >= 0.9 ✓ (test green) ·
+mean AUC >= 0.55 ✓ (0.631) · >= 80 FPS ✓ (~420). Sequence notes: DragonBaby was
+never archived and Human3's zip does not survive Wayback transfer — replaced by
+Woman and Jogging (documented in fetch_otb.sh). Girl2 (1500 frames, repeated full
+occlusion) is the known weak spot — re-acquisition (M4) and step-3 improvements
+target exactly this.
 
-## M3 — MOSSE fallback (pending)
+## M3 — MOSSE fallback on mini-OTB (same run)
 
-Acceptance: >= 200 FPS; IoU >= 0.5 mean on Car4/CarDark; PSR drop on occlusion.
+| Sequence | AUC | prec@20 | mIoU | FPS |
+|---|---|---|---|---|
+| Car4 | 0.481 | 1.000 | 0.478 | 2375 |
+| CarDark | 0.752 | 1.000 | 0.768 | 2119 |
+| BlurCar2 | 0.129 | 0.132 | 0.116 | 1060 |
+| Jogging | 0.558 | 0.974 | 0.561 | 1789 |
+| Girl2 | 0.059 | 0.075 | 0.060 | 964 |
+| Woman | 0.102 | 0.198 | 0.101 | 2024 |
+
+Acceptance: >= 200 FPS ✓ (964+) · Car4/CarDark mean IoU >= 0.5 ✓ (0.623) · PSR
+collapse under occlusion ✓ (unit test). Blur and long occlusion defeat a 64x64
+correlation filter as expected — MOSSE is the NN-free fallback, not the main line.
 
 ## M4 — latency baseline (pending)
 
