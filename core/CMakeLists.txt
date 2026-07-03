@@ -5,6 +5,8 @@ add_library(ctrk_common STATIC
   src/common/geometry.cpp
   src/common/kalman.cpp
   src/common/munkres.cpp
+  src/common/subwindow.cpp
+  src/common/log.cpp
 )
 add_library(ctrk::common ALIAS ctrk_common)
 
