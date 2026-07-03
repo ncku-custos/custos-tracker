@@ -10,6 +10,14 @@
 
 namespace ctrk {
 
+// TrackerNanoImpl::getSubwindow replica as a free function (unit-testable
+// without engines): integer-truncated center, integer half-size, whole-image
+// mean as padding — but the mean is computed and the padded window built
+// (crop-sized, not frame-sized) only when the crop leaves the image. `out`
+// and `scratch` are caller-owned so repeated calls do not allocate.
+void nano_subwindow(const cv::Mat& img, float pos_x, float pos_y, int original_sz, int model_sz,
+                    cv::Mat& out, cv::Mat& scratch);
+
 // NanoTrack v2 siamese pipeline. The numerics deliberately replicate
 // OpenCV's TrackerNanoImpl bit-for-bit (including its integer-division and
 // sizeCal(targetPos) quirks) — the differential oracle test depends on it.
@@ -28,7 +36,6 @@ class NanoTracker {
   static constexpr int kStride = 16;
   static constexpr int kScore = 16;
 
-  cv::Mat subwindow(const cv::Mat& img, int original_sz, int model_sz) const;
   void blob_rgb(const cv::Mat& crop, std::vector<float>& out) const;
 
   SotConfig cfg_;
@@ -39,6 +46,7 @@ class NanoTracker {
   float pos_x_ = 0, pos_y_ = 0, sz_w_ = 0, sz_h_ = 0;
   cv::Size img_size_;
   cv::Mat hann_, grid_x_, grid_y_;  // 16x16 CV_32F
+  cv::Mat crop_, crop_scratch_;     // nano_subwindow reusable buffers
 };
 
 }  // namespace ctrk

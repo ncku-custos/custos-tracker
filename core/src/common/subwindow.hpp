@@ -12,4 +12,8 @@ namespace ctrk {
 cv::Mat crop_subwindow(const cv::Mat& img, float cx, float cy, int original_sz, int model_sz,
                        const cv::Scalar& pad_value);
 
+// True if the crop above would extend beyond the image. Lets callers compute
+// an expensive pad value (e.g. the whole-frame mean) only when it is used.
+bool subwindow_needs_padding(const cv::Mat& img, float cx, float cy, int original_sz);
+
 }  // namespace ctrk

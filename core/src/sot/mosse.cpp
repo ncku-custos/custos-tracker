@@ -39,7 +39,11 @@ cv::Mat MosseTracker::grab_patch(const cv::Mat& image, float scale) const {
   // Square context window around the target (its larger side, scaled),
   // resized to the fixed filter resolution.
   const int side = std::max(2, static_cast<int>(std::lround(std::max(sz_w_, sz_h_) * scale)));
-  return crop_subwindow(image, pos_x_, pos_y_, side, kSize, cv::mean(image));
+  // Whole-frame mean as pad color, but only paid when the window actually
+  // leaves the frame.
+  const cv::Scalar pad =
+      subwindow_needs_padding(image, pos_x_, pos_y_, side) ? cv::mean(image) : cv::Scalar();
+  return crop_subwindow(image, pos_x_, pos_y_, side, kSize, pad);
 }
 
 void MosseTracker::train(const cv::Mat& processed, float lr) {

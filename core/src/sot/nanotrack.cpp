@@ -41,34 +41,39 @@ NanoTracker::NanoTracker(const SotConfig& config)
 }
 
 // Exact replica of TrackerNanoImpl::getSubwindow: integer-truncated center,
-// integer half-size, whole-image mean as padding value.
-cv::Mat NanoTracker::subwindow(const cv::Mat& img, int original_sz, int model_sz) const {
-  const cv::Scalar avg = cv::mean(img);
+// integer half-size, whole-image mean as padding value. The mean and the
+// padded buffer (crop-sized, not frame-sized) are produced only when the
+// crop actually leaves the image — pixel-identical to the reference's
+// copyMakeBorder-then-ROI on every path.
+void nano_subwindow(const cv::Mat& img, float pos_x, float pos_y, int original_sz, int model_sz,
+                    cv::Mat& out, cv::Mat& scratch) {
   const int c = (original_sz + 1) / 2;
-  int xmin = static_cast<int>(pos_x_) - c;
-  int ymin = static_cast<int>(pos_y_) - c;
-  int xmax = xmin + original_sz - 1;
-  int ymax = ymin + original_sz - 1;
+  const int xmin = static_cast<int>(pos_x) - c;
+  const int ymin = static_cast<int>(pos_y) - c;
+  const int xmax = xmin + original_sz - 1;
+  const int ymax = ymin + original_sz - 1;
 
   const int left_pad = std::max(0, -xmin);
   const int top_pad = std::max(0, -ymin);
   const int right_pad = std::max(0, xmax - img.cols + 1);
   const int bottom_pad = std::max(0, ymax - img.rows + 1);
-  xmin += left_pad;
-  ymin += top_pad;
 
   cv::Mat crop;
   if (left_pad || top_pad || right_pad || bottom_pad) {
-    cv::Mat padded;
-    cv::copyMakeBorder(img, padded, top_pad, bottom_pad, left_pad, right_pad, cv::BORDER_CONSTANT,
-                       avg);
-    crop = padded(cv::Rect(xmin, ymin, original_sz, original_sz));
+    const cv::Scalar avg = cv::mean(img);
+    scratch.create(original_sz, original_sz, img.type());
+    scratch.setTo(avg);
+    const int vw = original_sz - left_pad - right_pad;
+    const int vh = original_sz - top_pad - bottom_pad;
+    if (vw > 0 && vh > 0) {
+      img(cv::Rect(xmin + left_pad, ymin + top_pad, vw, vh))
+          .copyTo(scratch(cv::Rect(left_pad, top_pad, vw, vh)));
+    }
+    crop = scratch;
   } else {
     crop = img(cv::Rect(xmin, ymin, original_sz, original_sz));
   }
-  cv::Mat out;
   cv::resize(crop, out, {model_sz, model_sz});
-  return out;
 }
 
 // blobFromImage(crop, 1.0, Size(), Scalar(), swapRB=true): raw 0-255 floats,
@@ -100,7 +105,8 @@ void NanoTracker::init(const cv::Mat& image, const BBox& target) {
   const int s = static_cast<int>(std::sqrt(w_ext * h_ext));
 
   std::vector<float> blob;
-  blob_rgb(subwindow(image, s, kExemplar), blob);
+  nano_subwindow(image, pos_x_, pos_y_, s, kExemplar, crop_, crop_scratch_);
+  blob_rgb(crop_, blob);
   const auto& in = backbone_z_->input_descs()[0];
   const auto out = backbone_z_->run({{in.name, in.shape, blob.data()}});
   zf_.assign(out[0].data, out[0].data + backbone_z_->output_descs()[0].elements());
@@ -118,14 +124,13 @@ SotResult NanoTracker::update(const cv::Mat& image) {
   sz_w_ *= scale_z;
   sz_h_ *= scale_z;
 
-  cv::Mat crop;
   {
     ProfileScope prof("sot.crop");
-    crop = subwindow(image, static_cast<int>(sx), kInstance);
+    nano_subwindow(image, pos_x_, pos_y_, static_cast<int>(sx), kInstance, crop_, crop_scratch_);
   }
   {
     ProfileScope prof("sot.blob");
-    blob_rgb(crop, x_blob_);
+    blob_rgb(crop_, x_blob_);
   }
   std::vector<TensorView> xf;
   {
