@@ -43,6 +43,7 @@ set_target_properties(ctrk_ros_support PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # copy shared by every composed node (docs/DECISIONS.md D-0016).
 add_library(ctrk_ros_components SHARED
   src/tbd_node.cpp
+  src/sot_node.cpp
 )
 target_link_libraries(ctrk_ros_components PUBLIC
   ctrk_ros_support
@@ -51,6 +52,10 @@ target_link_libraries(ctrk_ros_components PUBLIC
 rclcpp_components_register_node(ctrk_ros_components
   PLUGIN "ctrk_ros::TbdNode"
   EXECUTABLE ctrk_tbd_node
+)
+rclcpp_components_register_node(ctrk_ros_components
+  PLUGIN "ctrk_ros::SotNode"
+  EXECUTABLE ctrk_sot_node
 )
 
 install(TARGETS ctrk_ros_components
@@ -71,6 +76,9 @@ if(BUILD_TESTING)
   ament_add_gtest(test_lifecycle_tbd test/test_lifecycle_tbd.cpp)
   target_link_libraries(test_lifecycle_tbd ctrk_ros_components)
   target_compile_definitions(test_lifecycle_tbd PRIVATE CTRK_REPO_ROOT="${CTRK_REPO_ROOT}")
+  # The CI anchor: full pub/sub e2e with the model-free MOSSE backend.
+  ament_add_gtest(test_lifecycle_sot_mosse test/test_lifecycle_sot_mosse.cpp TIMEOUT 120)
+  target_link_libraries(test_lifecycle_sot_mosse ctrk_ros_components)
 endif()
 
 ament_package()
