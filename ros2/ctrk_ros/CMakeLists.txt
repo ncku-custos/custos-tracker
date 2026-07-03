@@ -17,6 +17,9 @@ find_package(ctrk_interfaces REQUIRED)
 # Not a rosdep key: installed by scripts/ros_check.sh into ros2/install-ctrk
 # and found through CMAKE_PREFIX_PATH (docs/DECISIONS.md D-0015).
 find_package(ctrk 0.4 REQUIRED)
+# frames_player reads image sequences, draw_node rasterizes boxes; the ctrk
+# Config only pulls the components the core libs link.
+find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs)
 
 # Support layer (param->config mapping, msg conversion, sink bridge) as an
 # object collection the component library and the unit tests share.
@@ -44,10 +47,15 @@ set_target_properties(ctrk_ros_support PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(ctrk_ros_components SHARED
   src/tbd_node.cpp
   src/sot_node.cpp
+  src/frames_player_node.cpp
+  src/draw_node.cpp
 )
 target_link_libraries(ctrk_ros_components PUBLIC
   ctrk_ros_support
   rclcpp_components::component
+  opencv_core
+  opencv_imgproc
+  opencv_imgcodecs
 )
 rclcpp_components_register_node(ctrk_ros_components
   PLUGIN "ctrk_ros::TbdNode"
@@ -56,6 +64,14 @@ rclcpp_components_register_node(ctrk_ros_components
 rclcpp_components_register_node(ctrk_ros_components
   PLUGIN "ctrk_ros::SotNode"
   EXECUTABLE ctrk_sot_node
+)
+rclcpp_components_register_node(ctrk_ros_components
+  PLUGIN "ctrk_ros::FramesPlayerNode"
+  EXECUTABLE ctrk_frames_player
+)
+rclcpp_components_register_node(ctrk_ros_components
+  PLUGIN "ctrk_ros::DrawNode"
+  EXECUTABLE ctrk_draw_node
 )
 
 install(TARGETS ctrk_ros_components
