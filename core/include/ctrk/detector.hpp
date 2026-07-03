@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "ctrk/infer.hpp"
 #include "ctrk/types.hpp"
 
 namespace ctrk {
@@ -21,7 +22,7 @@ struct Yolov8Config {
   float conf_thr = 0.1f;   // deliberately low: ByteTrack consumes low-score dets
   float nms_iou = 0.45f;
   std::vector<int> keep_classes;  // COCO ids; empty keeps all (0 = person)
-  int intra_op_threads = 4;
+  EngineOptions engine;           // threads/spin/warmup for the detector graph
 };
 
 // Throws std::runtime_error on model-load failure.

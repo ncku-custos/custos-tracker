@@ -11,6 +11,7 @@
 # Environment:
 #   CTRK_BENCH_TASKSET  cpu list for `taskset -c` pinning experiments
 #                       (e.g. "0-3" = P-cores on the i5-1335U); default unpinned.
+#   CTRK_BENCH_BUILD    build directory to take binaries from (default: build).
 #
 # Methodology (docs/RESULTS.md "step 2"): AC power, machine otherwise idle,
 # report the median p50; a change is real only if it clears 2x the stddev
@@ -18,7 +19,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUILD="$ROOT/build"
+BUILD="${CTRK_BENCH_BUILD:-$ROOT/build}"
 OUT="$ROOT/results/bench"
 REPS=3
 ONLY=""

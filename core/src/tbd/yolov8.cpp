@@ -81,8 +81,7 @@ namespace {
 class Yolov8Detector final : public IDetector {
  public:
   explicit Yolov8Detector(const Yolov8Config& config)
-      : config_(config),
-        engine_(make_ort_engine(config.model_path, {.intra_op_threads = config.intra_op_threads})) {
+      : config_(config), engine_(make_ort_engine(config.model_path, config.engine)) {
     const auto& in = engine_->input_descs();
     const auto& out = engine_->output_descs();
     if (in.size() != 1 || out.size() != 1 || in[0].shape.size() != 4 || out[0].shape.size() != 3 ||

@@ -22,6 +22,9 @@ const char* kUsage =
     "{mode     | byte  | association mode: byte | sort}"
     "{classes  |       | comma-separated COCO class ids to keep (empty = all, 0 = person)}"
     "{conf     | 0.1   | detector confidence floor}"
+    "{threads  | 4     | detector intra-op threads}"
+    "{no-spin  |       | stop the ORT pool busy-waiting between runs (lower idle CPU)}"
+    "{dnnl     |       | experimental oneDNN execution provider}"
     "{output o | tbd_out.mp4 | annotated output video ('' to disable)}"
     "{dump     |       | write MOT-format results (frame,id,x,y,w,h,score,-1,-1,-1)}"
     "{bench-json |     | write per-stage latency stats as JSON}"
@@ -63,6 +66,9 @@ int main(int argc, char** argv) {
   cfg.detector.model_path = cli.get<std::string>("model");
   cfg.detector.conf_thr = cli.get<float>("conf");
   cfg.detector.keep_classes = parse_classes(cli.get<std::string>("classes"));
+  cfg.detector.engine.intra_op_threads = cli.get<int>("threads");
+  cfg.detector.engine.allow_spinning = !cli.has("no-spin");
+  cfg.detector.engine.use_dnnl = cli.has("dnnl");
   cfg.assoc.use_byte = cli.get<std::string>("mode") != "sort";
   cfg.nominal_fps = src->fps();
   std::optional<ctrk::MultiTracker> tracker;

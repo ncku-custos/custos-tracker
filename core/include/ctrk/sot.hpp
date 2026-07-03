@@ -4,6 +4,7 @@
 #include <string>
 
 #include "ctrk/detector.hpp"
+#include "ctrk/infer.hpp"
 #include "ctrk/types.hpp"
 
 namespace ctrk {
@@ -20,7 +21,8 @@ struct SotConfig {
   std::string backbone_z_path;  // template branch, run once at init
   std::string backbone_x_path;  // search branch, per frame
   std::string head_path;        // correlation head, per frame
-  int intra_op_threads = 2;
+  // Engine knobs, applied to all three graphs.
+  EngineOptions engine{.intra_op_threads = 2};
 
   // Post-processing constants — cv::TrackerNano parity (do not tune before
   // the oracle differential test passes; tuning is step 3).

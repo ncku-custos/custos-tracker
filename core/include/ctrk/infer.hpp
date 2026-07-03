@@ -35,6 +35,14 @@ struct TensorView {
 
 struct EngineOptions {
   int intra_op_threads = 4;
+  // false trades a little tail latency for much lower idle CPU (the pool
+  // stops busy-waiting between runs) — the SoC-friendly setting.
+  bool allow_spinning = true;
+  // One zero-input inference at load so the first real frame does not pay
+  // one-time lazy initialization.
+  bool warmup = true;
+  // Experimental oneDNN execution provider (host benchmarking only).
+  bool use_dnnl = false;
 };
 
 // One loaded model graph. Engines are single-threaded like all core objects;

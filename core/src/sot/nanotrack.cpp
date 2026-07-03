@@ -24,11 +24,9 @@ inline float recip_max(float v) {
 
 NanoTracker::NanoTracker(const SotConfig& config)
     : cfg_(config),
-      backbone_z_(
-          make_ort_engine(config.backbone_z_path, {.intra_op_threads = config.intra_op_threads})),
-      backbone_x_(
-          make_ort_engine(config.backbone_x_path, {.intra_op_threads = config.intra_op_threads})),
-      head_(make_ort_engine(config.head_path, {.intra_op_threads = config.intra_op_threads})) {
+      backbone_z_(make_ort_engine(config.backbone_z_path, config.engine)),
+      backbone_x_(make_ort_engine(config.backbone_x_path, config.engine)),
+      head_(make_ort_engine(config.head_path, config.engine)) {
   cv::createHanningWindow(hann_, {kScore, kScore}, CV_32F);
   grid_x_.create(kScore, kScore, CV_32F);
   grid_y_.create(kScore, kScore, CV_32F);
