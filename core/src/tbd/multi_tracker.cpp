@@ -14,6 +14,7 @@ struct MultiTracker::Impl {
   std::unique_ptr<IDetector> detector;
   ByteTracker tracker;
   int64_t prev_t_ns = -1;
+  int until_detect = 0;  // frames left to coast before the next detect
 };
 
 MultiTracker::MultiTracker(const TbdConfig& config) : impl_(std::make_unique<Impl>(config)) {}
@@ -31,6 +32,14 @@ std::vector<Track> MultiTracker::update(const FrameView& frame) {
                     0.1f, 5.f);
   }
   impl_->prev_t_ns = frame.t_ns;
+
+  if (impl_->until_detect > 0) {
+    impl_->until_detect--;
+    ProfileScope prof("coast");
+    return impl_->tracker.coast(dt);
+  }
+  impl_->until_detect = std::max(1, impl_->cfg.detect_interval) - 1;
+
   const std::vector<Detection> dets = impl_->detector->detect(frame);
   ProfileScope prof("assoc");
   return impl_->tracker.update(dets, dt);

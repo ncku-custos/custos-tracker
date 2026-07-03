@@ -59,6 +59,17 @@ void ByteTracker::mark_matched(STrack& track, const Detection& det) {
     track.state = TrackState::Confirmed;
 }
 
+std::vector<Track> ByteTracker::coast(float dt) {
+  std::vector<Track> out;
+  out.reserve(tracks_.size());
+  for (auto& t : tracks_) {
+    t.kf.predict(dt);
+    t.age++;
+    out.push_back({t.id, t.kf.box(), t.score, t.class_id, t.state, t.age, t.hits});
+  }
+  return out;
+}
+
 std::vector<Track> ByteTracker::update(const std::vector<Detection>& detections, float dt) {
   // Predict every live track forward.
   std::vector<BBox> predicted(tracks_.size());

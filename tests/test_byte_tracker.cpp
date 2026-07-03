@@ -21,6 +21,83 @@ std::optional<Track> find_confirmed_near(const std::vector<Track>& tracks, float
   return std::nullopt;
 }
 
+TEST(Coast, BoxesAdvanceWithMotionAndStateIsUntouched) {
+  AssocConfig cfg;
+  cfg.use_byte = false;
+  ByteTracker tracker(cfg);
+  int id = -1;
+  for (int i = 0; i < 4; ++i) {
+    const auto out = tracker.update({det(100.f + 5 * static_cast<float>(i), 100, 40, 80, 0.9f)});
+    if (!out.empty()) id = out[0].id;
+  }
+  // Constant velocity established (~5 px/frame). Coast two frames.
+  const auto c1 = tracker.coast();
+  ASSERT_EQ(c1.size(), 1u);
+  EXPECT_EQ(c1[0].id, id);
+  EXPECT_EQ(c1[0].state, TrackState::Confirmed);
+  const auto c2 = tracker.coast();
+  EXPECT_GT(c2[0].box.cx(), c1[0].box.cx());
+  EXPECT_NEAR(c2[0].box.cx() - c1[0].box.cx(), 5.f, 2.f);
+}
+
+TEST(Coast, DoesNotAgeTracksOutAndKeepsIdAcrossTheGap) {
+  AssocConfig cfg;
+  cfg.use_byte = false;
+  cfg.max_age = 3;  // tight, in DETECT-frame units
+  ByteTracker tracker(cfg);
+  int id = -1;
+  for (int i = 0; i < 3; ++i) {
+    const auto out = tracker.update({det(100.f + 2 * static_cast<float>(i), 100, 40, 80, 0.9f)});
+    if (!out.empty()) id = out[0].id;
+  }
+  // Coast far past max_age: lifecycle must not decay on detector-free frames.
+  for (int i = 0; i < 20; ++i) {
+    const auto out = tracker.coast();
+    ASSERT_EQ(out.size(), 1u) << "coast frame " << i;
+    EXPECT_EQ(out[0].state, TrackState::Confirmed);
+  }
+  // Next detect frame re-locks with the same id where prediction leads.
+  const auto out = tracker.update({det(144, 100, 40, 80, 0.9f)});
+  ASSERT_EQ(out.size(), 1u);
+  EXPECT_EQ(out[0].id, id);
+  EXPECT_EQ(out[0].state, TrackState::Confirmed);
+}
+
+TEST(Coast, IdsStableThroughCrossingAtIntervalTwo) {
+  AssocConfig cfg;
+  ByteTracker tracker(cfg);
+  // Two targets crossing: A moves right, B moves left, meeting near x=150.
+  // 2 px/frame: at interval 2 a track sees 4 px between detects, inside the
+  // tentative-stage IoU gate. (Faster targets churn during track birth at
+  // high N — the 0.7 tentative gate is the brittle point; see RESULTS.md.)
+  int id_a = -1, id_b = -1;
+  for (int f = 0; f < 44; ++f) {
+    const float ax = 100.f + 2.f * static_cast<float>(f);
+    const float bx = 200.f - 2.f * static_cast<float>(f);
+    std::vector<Track> out;
+    if (f % 2 == 0) {
+      out = tracker.update({det(ax, 100, 30, 60, 0.9f), det(bx, 160, 30, 60, 0.9f)});
+    } else {
+      out = tracker.coast();  // detector skipped on odd frames
+    }
+    if (f == 8) {
+      const auto a = find_confirmed_near(out, ax + 15, 130);
+      const auto b = find_confirmed_near(out, bx + 15, 190);
+      ASSERT_TRUE(a && b);
+      id_a = a->id;
+      id_b = b->id;
+    }
+  }
+  // After the cross (f=44): A is right of B; same ids, no swap, no ghosts.
+  const auto final_out = tracker.update({det(188, 100, 30, 60, 0.9f), det(112, 160, 30, 60, 0.9f)});
+  const auto a = find_confirmed_near(final_out, 203, 130);
+  const auto b = find_confirmed_near(final_out, 127, 190);
+  ASSERT_TRUE(a && b);
+  EXPECT_EQ(a->id, id_a);
+  EXPECT_EQ(b->id, id_b);
+  EXPECT_EQ(final_out.size(), 2u);
+}
+
 TEST(SortLifecycle, ConfirmsAfterNInitHits) {
   AssocConfig cfg;
   cfg.use_byte = false;

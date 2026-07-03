@@ -21,6 +21,12 @@ class ByteTracker {
   // dt in frame units (1.0 = one nominal frame).
   std::vector<Track> update(const std::vector<Detection>& detections, float dt = 1.f);
 
+  // Detector-free step: advance every live track's motion model, no
+  // association and no lifecycle mutation — misses, max_age and the stage-2
+  // "matched last frame" window all keep counting in detect-frame units.
+  // This is what makes a detect-every-N cadence safe at any N.
+  std::vector<Track> coast(float dt = 1.f);
+
  private:
   struct STrack {
     KalmanBox kf;

@@ -26,6 +26,11 @@ struct TbdConfig {
   Yolov8Config detector;
   AssocConfig assoc;
   double nominal_fps = 30.0;  // converts FrameView timestamps to KF dt
+  // Run the detector every Nth frame; the frames between coast on the
+  // Kalman prediction alone. Association state (misses, max_age, the
+  // ByteTrack stage-2 window) counts in detect-frame units, so track
+  // lifecycle does not decay faster at higher N. 1 = detect every frame.
+  int detect_interval = 1;
 };
 
 // Tracking-by-detection facade: frames in, identity-stable tracks out.
