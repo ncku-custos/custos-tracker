@@ -32,6 +32,7 @@ if(CTRK_WITH_ORT)
 
   add_library(ctrk_tbd STATIC
     src/tbd/yolov8.cpp
+    src/tbd/byte_tracker.cpp
   )
   add_library(ctrk::tbd ALIAS ctrk_tbd)
   target_include_directories(ctrk_tbd
