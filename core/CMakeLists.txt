@@ -29,6 +29,19 @@ if(CTRK_WITH_ORT)
       src)
   target_link_libraries(ctrk_infer PUBLIC ctrk::common PRIVATE ctrk::ort)
   install(TARGETS ctrk_infer EXPORT ctrkTargets)
+
+  add_library(ctrk_tbd STATIC
+    src/tbd/yolov8.cpp
+  )
+  add_library(ctrk::tbd ALIAS ctrk_tbd)
+  target_include_directories(ctrk_tbd
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+    PRIVATE
+      src)
+  target_link_libraries(ctrk_tbd PUBLIC ctrk::common ctrk::infer PRIVATE opencv_core opencv_imgproc)
+  install(TARGETS ctrk_tbd EXPORT ctrkTargets)
 endif()
 
 install(TARGETS ctrk_common EXPORT ctrkTargets)
