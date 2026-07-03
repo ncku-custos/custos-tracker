@@ -14,8 +14,7 @@ namespace ctrk {
 
 std::vector<Detection> decode_yolov8(const float* out, int num_classes, int num_anchors,
                                      float conf_thr, float nms_iou, const LetterboxMap& map,
-                                     const std::vector<int>& keep_classes,
-                                     DecodeScratch* scratch) {
+                                     const std::vector<int>& keep_classes, DecodeScratch* scratch) {
   const auto value = [&](int c, int a) { return out[c * num_anchors + a]; };
   const auto wanted = [&](int cls) {
     return keep_classes.empty() ||
