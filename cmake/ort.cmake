@@ -7,12 +7,18 @@ set(CTRK_ORT_ROOT "" CACHE PATH "Path to an unpacked official onnxruntime releas
 
 add_library(ctrk_ort INTERFACE)
 add_library(ctrk::ort ALIAS ctrk_ort)
+set_target_properties(ctrk_ort PROPERTIES EXPORT_NAME ort)
 # Part of the install export set: ctrk_infer PRIVATE-links it, which still
-# lands in the static lib's LINK_ONLY interface. Consumers must find_package
-# onnxruntime themselves (proper Config-file plumbing is a step-4 task).
+# lands in the static lib's LINK_ONLY interface. ctrkConfig.cmake re-finds
+# onnxruntime for consumers on the system-package path; the tarball path
+# bakes absolute dirs into the export (same-machine consumption only).
 install(TARGETS ctrk_ort EXPORT ctrkTargets)
 
+# Recorded into ctrkConfig.cmake so consumers know whether to find_dependency.
+set(CTRK_ORT_FROM_TARBALL OFF)
+
 if(CTRK_ORT_ROOT)
+  set(CTRK_ORT_FROM_TARBALL ON)
   if(NOT EXISTS ${CTRK_ORT_ROOT}/include/onnxruntime_cxx_api.h)
     message(FATAL_ERROR "CTRK_ORT_ROOT=${CTRK_ORT_ROOT} does not look like an onnxruntime release tarball")
   endif()

@@ -11,6 +11,9 @@ add_library(ctrk_common STATIC
   src/common/profile.cpp
 )
 add_library(ctrk::common ALIAS ctrk_common)
+# Exported name matches the in-tree alias, so find_package(ctrk) consumers
+# and in-tree code link the same ctrk::<name> targets.
+set_target_properties(ctrk_common PROPERTIES EXPORT_NAME common)
 
 target_include_directories(ctrk_common
   PUBLIC
@@ -23,6 +26,7 @@ target_link_libraries(ctrk_common PRIVATE opencv_core opencv_imgproc)
 if(CTRK_WITH_ORT)
   add_library(ctrk_infer STATIC src/infer/ort_engine.cpp)
   add_library(ctrk::infer ALIAS ctrk_infer)
+  set_target_properties(ctrk_infer PROPERTIES EXPORT_NAME infer)
   target_include_directories(ctrk_infer
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -39,6 +43,7 @@ if(CTRK_WITH_ORT)
     src/tbd/gmc.cpp
   )
   add_library(ctrk::tbd ALIAS ctrk_tbd)
+  set_target_properties(ctrk_tbd PROPERTIES EXPORT_NAME tbd)
   target_include_directories(ctrk_tbd
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -55,6 +60,7 @@ if(CTRK_WITH_ORT)
     src/sot/sot_tracker.cpp
   )
   add_library(ctrk::sot ALIAS ctrk_sot)
+  set_target_properties(ctrk_sot PROPERTIES EXPORT_NAME sot)
   target_include_directories(ctrk_sot
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -68,3 +74,14 @@ endif()
 install(TARGETS ctrk_common EXPORT ctrkTargets)
 install(DIRECTORY include/ DESTINATION include)
 install(EXPORT ctrkTargets NAMESPACE ctrk:: DESTINATION lib/cmake/ctrk)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(${PROJECT_SOURCE_DIR}/cmake/ctrkConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/ctrkConfig.cmake
+  INSTALL_DESTINATION lib/cmake/ctrk)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ctrkConfigVersion.cmake
+  COMPATIBILITY SameMajorVersion)
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/ctrkConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/ctrkConfigVersion.cmake
+  DESTINATION lib/cmake/ctrk)

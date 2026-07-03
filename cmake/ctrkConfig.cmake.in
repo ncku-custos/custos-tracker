@@ -1,0 +1,19 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# The static ctrk libs PRIVATE-link these; the references survive in the
+# export as $<LINK_ONLY:...>, so consumers still need the imported targets.
+find_dependency(OpenCV 4 COMPONENTS core imgproc video calib3d)
+
+set(CTRK_WITH_ORT "@CTRK_WITH_ORT@")
+set(CTRK_ORT_FROM_TARBALL "@CTRK_ORT_FROM_TARBALL@")
+if(CTRK_WITH_ORT AND NOT CTRK_ORT_FROM_TARBALL)
+  find_dependency(onnxruntime CONFIG)
+endif()
+# Tarball builds (CTRK_ORT_ROOT) export absolute include/lib dirs on
+# ctrk::ort — valid on the build machine only.
+
+include("${CMAKE_CURRENT_LIST_DIR}/ctrkTargets.cmake")
+
+check_required_components(ctrk)

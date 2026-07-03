@@ -1,6 +1,7 @@
 # Build
 build*/
 install*/
+log/
 compile_commands.json
 
 # Model weights — fetched by models/get_models.sh, pinned in models/manifest.json
