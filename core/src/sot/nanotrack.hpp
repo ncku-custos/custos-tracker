@@ -42,18 +42,21 @@ class NanoTracker {
   static constexpr int kExemplar = 127;
   static constexpr int kInstance = 255;
   static constexpr int kStride = 16;
-  static constexpr int kScore = 16;
 
   void blob_rgb(const cv::Mat& crop, std::vector<float>& out) const;
 
   SotConfig cfg_;
   std::unique_ptr<IEngine> backbone_z_, backbone_x_, head_;
 
+  // Score-map side, read from the loaded head graph ([1,2,S,S]) so v2
+  // (16x16) and v3 (15x15) share one postproc path (RESULTS.md S3.7).
+  int score_size_ = 0;
+
   std::vector<float> zf_;      // template features, frozen at init
   std::vector<float> x_blob_;  // reusable search-branch input
   float pos_x_ = 0, pos_y_ = 0, sz_w_ = 0, sz_h_ = 0;
   cv::Size img_size_;
-  cv::Mat hann_, grid_x_, grid_y_;  // 16x16 CV_32F
+  cv::Mat hann_, grid_x_, grid_y_;  // score_size_^2 CV_32F
   cv::Mat crop_, crop_scratch_;     // nano_subwindow reusable buffers
 };
 

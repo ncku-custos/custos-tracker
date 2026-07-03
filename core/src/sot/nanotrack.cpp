@@ -27,13 +27,22 @@ NanoTracker::NanoTracker(const SotConfig& config)
       backbone_z_(make_ort_engine(config.backbone_z_path, config.engine)),
       backbone_x_(make_ort_engine(config.backbone_x_path, config.engine)),
       head_(make_ort_engine(config.head_path, config.engine)) {
-  cv::createHanningWindow(hann_, {kScore, kScore}, CV_32F);
-  grid_x_.create(kScore, kScore, CV_32F);
-  grid_y_.create(kScore, kScore, CV_32F);
-  for (int r = 0; r < kScore; ++r)
-    for (int c = 0; c < kScore; ++c) {
-      grid_x_.at<float>(r, c) = static_cast<float>((c - kScore / 2) * kStride + kInstance / 2);
-      grid_y_.at<float>(r, c) = static_cast<float>((r - kScore / 2) * kStride + kInstance / 2);
+  // The score-map side comes from the head graph, so v2 ([1,2,16,16]) and
+  // v3 ([1,4,15,15] reg / 15x15 cls) share this postproc. The grid formula
+  // below is parity-correct for both: the upstream points are zero-centered
+  // (-(S/2)*stride + stride*c) and the kInstance/2 shift cancels against
+  // diff_xs in update().
+  const auto& cls_shape = head_->output_descs()[0].shape;
+  CV_Assert(cls_shape.size() == 4 && cls_shape[1] == 2 && cls_shape[2] == cls_shape[3]);
+  score_size_ = static_cast<int>(cls_shape[2]);
+
+  cv::createHanningWindow(hann_, {score_size_, score_size_}, CV_32F);
+  grid_x_.create(score_size_, score_size_, CV_32F);
+  grid_y_.create(score_size_, score_size_, CV_32F);
+  for (int r = 0; r < score_size_; ++r)
+    for (int c = 0; c < score_size_; ++c) {
+      grid_x_.at<float>(r, c) = static_cast<float>((c - score_size_ / 2) * kStride + kInstance / 2);
+      grid_y_.at<float>(r, c) = static_cast<float>((r - score_size_ / 2) * kStride + kInstance / 2);
     }
   x_blob_.resize(static_cast<size_t>(3) * kInstance * kInstance);
 }
@@ -158,10 +167,10 @@ SotResult NanoTracker::update(const cv::Mat& image) {
     outs = head_->run({{"input1", hin[0].shape, zf_.data()}, {"input2", hin[1].shape, xf[0].data}});
   }
   ProfileScope prof("sot.postproc");
-  const float* cls = outs[0].data;  // [1,2,16,16]
-  const float* reg = outs[1].data;  // [1,4,16,16]
+  const float* cls = outs[0].data;  // [1,2,S,S]
+  const float* reg = outs[1].data;  // [1,4,S,S]
 
-  constexpr int kCells = kScore * kScore;
+  const int kCells = score_size_ * score_size_;
   float best_pscore = -1.f;
   int best = 0;
   float best_score = 0.f, best_penalty = 0.f;
