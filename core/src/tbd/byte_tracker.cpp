@@ -86,8 +86,19 @@ std::vector<Track> ByteTracker::update(const std::vector<Detection>& detections,
   auto unmatched_mature = remove_matched(mature_tracks, matches, /*first=*/true);
   auto unmatched_high = remove_matched(high_dets, matches, /*first=*/false);
 
-  // Stage 2 (ByteTrack low-score recovery) lands in the next commit.
-  (void)low_dets;
+  // Stage 2 (ByteTrack): low-score dets vs tracks matched as recently as the
+  // previous frame. Recovers occlusion/blur-dimmed detections instead of
+  // letting the track coast blind.
+  if (cfg_.use_byte) {
+    std::vector<int> recent;
+    for (int idx : unmatched_mature)
+      if (tracks_[idx].state == TrackState::Confirmed && tracks_[idx].time_since_update == 1)
+        recent.push_back(idx);
+    const auto low_matches =
+        match_by_iou(predicted, recent, detections, low_dets, cfg_.match_thresh_low);
+    matches.insert(matches.end(), low_matches.begin(), low_matches.end());
+    unmatched_mature = remove_matched(unmatched_mature, low_matches, /*first=*/true);
+  }
 
   // Stage 3: remaining high-score dets vs tentative tracks.
   const auto tentative_matches = match_by_iou(predicted, tentative_tracks, detections,

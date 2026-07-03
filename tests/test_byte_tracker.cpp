@@ -118,6 +118,63 @@ TEST(SortLifecycle, LowScoreDetectionsNeverSpawnTracks) {
   for (int i = 0; i < 10; ++i) EXPECT_TRUE(tracker.update({det(50, 50, 30, 30, 0.3f)}).empty());
 }
 
+// --- ByteTrack-specific behaviour (use_byte = true) ---
+
+TEST(ByteTrack, LowScoreFlickerKeepsTrackUpdated) {
+  AssocConfig byte_cfg;                    // use_byte = true
+  AssocConfig sort_cfg = byte_cfg;
+  sort_cfg.use_byte = false;
+  ByteTracker byte_tracker(byte_cfg);
+  ByteTracker sort_tracker(sort_cfg);
+
+  auto run = [](ByteTracker& tr, int frame) {
+    // Score dips below track_thresh (0.5) during frames 10..14 — an
+    // occlusion-dimmed detection — then recovers.
+    const float score = (frame >= 10 && frame < 15) ? 0.3f : 0.9f;
+    return tr.update({det(100.f + 2 * static_cast<float>(frame), 100, 40, 80, score)});
+  };
+
+  int byte_id = -1, sort_id = -1;
+  bool sort_degraded = false;
+  for (int f = 0; f < 25; ++f) {
+    const auto byte_out = run(byte_tracker, f);
+    const auto sort_out = run(sort_tracker, f);
+    if (f >= 10 && f < 15) {
+      // ByteTrack stage 2 keeps consuming the dimmed detection.
+      ASSERT_EQ(byte_out.size(), 1u);
+      EXPECT_EQ(byte_out[0].state, TrackState::Confirmed) << "frame " << f;
+      // SORT ignores it and degrades to coasting.
+      if (!sort_out.empty() && sort_out[0].state == TrackState::Lost) sort_degraded = true;
+    }
+    if (f == 24) {
+      ASSERT_EQ(byte_out.size(), 1u);
+      ASSERT_EQ(sort_out.size(), 1u);
+      byte_id = byte_out[0].id;
+      sort_id = sort_out[0].id;
+    }
+  }
+  EXPECT_TRUE(sort_degraded) << "SORT mode should coast through the dip";
+  EXPECT_EQ(byte_id, 1);
+  EXPECT_EQ(sort_id, 1);  // both recover the id; byte never lost the lock
+}
+
+TEST(ByteTrack, LowScoreDetsOnlyFeedExistingTracks) {
+  ByteTracker tracker{AssocConfig{}};
+  // Low-score detections alone must not create tracks even in byte mode.
+  for (int i = 0; i < 10; ++i) EXPECT_TRUE(tracker.update({det(50, 50, 30, 30, 0.4f)}).empty());
+}
+
+TEST(ByteTrack, StageTwoDoesNotFeedLostTracks) {
+  AssocConfig cfg;
+  ByteTracker tracker(cfg);
+  for (int i = 0; i < 3; ++i)
+    tracker.update({det(100.f + 2 * static_cast<float>(i), 100, 40, 80, 0.9f)});
+  tracker.update({});  // miss -> Lost; no longer "matched last frame"
+  const auto out = tracker.update({det(110, 100, 40, 80, 0.3f)});
+  ASSERT_EQ(out.size(), 1u);
+  EXPECT_EQ(out[0].state, TrackState::Lost) << "lost tracks must not eat low-score dets";
+}
+
 TEST(SortLifecycle, IdsAreNeverReused) {
   AssocConfig cfg;
   cfg.use_byte = false;
