@@ -48,6 +48,18 @@ UAV123 AUC 64.8, 3.16M params) — it costs the oracle property, so it lands onl
 own harness is trusted. Every 2024-2026 tracker that beats LightFC does so by re-adding
 transformer attention (AsymTrack, SMAT, HiT, LiteTrack) — deferred until the NPU is known.
 
+## D-0005a — M2 spike verdict (2026-07-03): NanoTrack v2 ships, v3 deferred
+
+The v3 head emits 15x15 score maps; cv::TrackerNano hardcodes the 16x16 grid
+((255-127)/16+8), so v3 cannot ride the differential-oracle path. v2 ships for
+step 1. v3 (needs bespoke 15x15 postproc, unverifiable against the oracle)
+moves to the step-3 upgrade list next to LightFC. Second finding: the
+published NanoTrack graphs use HardSwish, an op that ENTERED ONNX at opset 14
+— opset 12 is unreachable for them without decomposing HardSwish
+(x * HardSigmoid(x)); most NPU toolchains support HardSwish natively, so we
+carry opset 14 for the SOT graphs and revisit only if the chosen vendor
+objects. The YOLOv8n export remains opset 12.
+
 ## D-0006 — Repository license: Apache-2.0
 
 Consistent with the wider project's licensing posture. The NanoTrack/SiamTrackers upstream
