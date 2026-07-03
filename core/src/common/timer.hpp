@@ -31,8 +31,8 @@ class StageStats {
     if (samples_.empty()) return 0.0;
     std::vector<int64_t> sorted = samples_;
     std::sort(sorted.begin(), sorted.end());
-    const size_t rank = static_cast<size_t>(
-        std::ceil(p / 100.0 * static_cast<double>(sorted.size())));
+    const size_t rank =
+        static_cast<size_t>(std::ceil(p / 100.0 * static_cast<double>(sorted.size())));
     return static_cast<double>(sorted[std::max<size_t>(rank, 1) - 1]) / 1e6;
   }
 
@@ -48,8 +48,8 @@ class StageTimer {
    public:
     Scope(StageStats& stats) : stats_(stats), t0_(clock::now()) {}
     ~Scope() {
-      stats_.add_ns(std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - t0_)
-                        .count());
+      stats_.add_ns(
+          std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - t0_).count());
     }
     Scope(const Scope&) = delete;
     Scope& operator=(const Scope&) = delete;
@@ -61,6 +61,12 @@ class StageTimer {
   };
 
   Scope scope(const std::string& stage) { return Scope(stats_[stage]); }
+
+  // Feed an externally measured sample (e.g. from the ctrk profile sink).
+  void add_ms(const std::string& stage, double ms) {
+    stats_[stage].add_ns(static_cast<int64_t>(ms * 1e6));
+  }
+
   const std::map<std::string, StageStats>& stats() const { return stats_; }
 
  private:

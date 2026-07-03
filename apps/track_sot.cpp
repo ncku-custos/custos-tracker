@@ -1,13 +1,14 @@
 #include <opencv2/core.hpp>
 
 #include <cstdio>
-#include <optional>
 #include <fstream>
+#include <optional>
 #include <string>
 
 #include "app_common.hpp"
 #include "common/mat_view.hpp"
 #include "ctrk/detector.hpp"
+#include "ctrk/profile.hpp"
 #include "ctrk/sot.hpp"
 #include "ctrk/types.hpp"
 
@@ -84,11 +85,19 @@ int main(int argc, char** argv) {
   };
 
   ctrk::StageTimer timer;
+  ctrk::set_profile_sink(
+      [&timer](std::string_view stage, double ms) { timer.add_ms(std::string(stage), ms); });
   cv::Mat frame;
   int64_t t_ns = 0;
   bool initialized = false;
 
-  while (src->read(frame, t_ns) && sink.wants_more()) {
+  while (sink.wants_more()) {
+    bool got = false;
+    {
+      const auto scope = timer.scope("capture");
+      got = src->read(frame, t_ns);
+    }
+    if (!got) break;
     ctrk::SotResult result;
     {
       const auto scope = timer.scope("sot");
@@ -102,13 +111,20 @@ int main(int argc, char** argv) {
       }
     }
     dump_box(result.box);
-    char label[64];
-    std::snprintf(label, sizeof(label), "target %.2f", result.score);
-    ctrk::app::draw_box(frame, result.box, {0, 200, 255}, label);
-    const auto& stats = timer.stats().at("sot");
-    ctrk::app::draw_hud(frame, timer, stats.p50_ms() > 0 ? 1000.0 / stats.p50_ms() : 0.0);
-    sink.write(frame);
+    {
+      const auto scope = timer.scope("draw");
+      char label[64];
+      std::snprintf(label, sizeof(label), "target %.2f", result.score);
+      ctrk::app::draw_box(frame, result.box, {0, 200, 255}, label);
+      const auto& stats = timer.stats().at("sot");
+      ctrk::app::draw_hud(frame, timer, stats.p50_ms() > 0 ? 1000.0 / stats.p50_ms() : 0.0);
+    }
+    {
+      const auto scope = timer.scope("encode");
+      sink.write(frame);
+    }
   }
+  ctrk::set_profile_sink({});
 
   std::printf("frames: %d\n", src->frames_read());
   ctrk::app::print_stage_summary(timer);

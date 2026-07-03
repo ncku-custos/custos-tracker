@@ -1,5 +1,6 @@
 #include <algorithm>
 
+#include "ctrk/profile.hpp"
 #include "ctrk/tbd.hpp"
 #include "tbd/byte_tracker.hpp"
 
@@ -25,12 +26,14 @@ std::vector<Track> MultiTracker::update(const FrameView& frame) {
   // (stalls, wrap-around) cannot catapult the motion model.
   float dt = 1.f;
   if (impl_->prev_t_ns >= 0 && frame.t_ns > impl_->prev_t_ns) {
-    dt = std::clamp(static_cast<float>(static_cast<double>(frame.t_ns - impl_->prev_t_ns) *
-                                       1e-9 * impl_->cfg.nominal_fps),
+    dt = std::clamp(static_cast<float>(static_cast<double>(frame.t_ns - impl_->prev_t_ns) * 1e-9 *
+                                       impl_->cfg.nominal_fps),
                     0.1f, 5.f);
   }
   impl_->prev_t_ns = frame.t_ns;
-  return impl_->tracker.update(impl_->detector->detect(frame), dt);
+  const std::vector<Detection> dets = impl_->detector->detect(frame);
+  ProfileScope prof("assoc");
+  return impl_->tracker.update(dets, dt);
 }
 
 }  // namespace ctrk

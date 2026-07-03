@@ -7,6 +7,7 @@
 #include "common/subwindow.hpp"
 #include "common/timer.hpp"
 #include "ctrk/log.hpp"
+#include "ctrk/profile.hpp"
 
 namespace ctrk {
 namespace {
@@ -50,14 +51,52 @@ TEST(StageStats, PercentilesNearestRank) {
 
 TEST(StageTimer, ScopeRecordsSample) {
   StageTimer timer;
-  { auto scope = timer.scope("stage_a"); }
+  {
+    auto scope = timer.scope("stage_a");
+  }
   ASSERT_EQ(timer.stats().count("stage_a"), 1u);
   EXPECT_EQ(timer.stats().at("stage_a").count(), 1u);
 }
 
+TEST(StageTimer, AddMsFeedsExternalSamples) {
+  StageTimer timer;
+  timer.add_ms("ext", 2.0);
+  timer.add_ms("ext", 4.0);
+  EXPECT_EQ(timer.stats().at("ext").count(), 2u);
+  EXPECT_DOUBLE_EQ(timer.stats().at("ext").mean_ms(), 3.0);
+}
+
+TEST(Profile, SinkReceivesScopedStages) {
+  std::vector<std::pair<std::string, double>> captured;
+  set_profile_sink(
+      [&](std::string_view stage, double ms) { captured.emplace_back(std::string(stage), ms); });
+  {
+    ProfileScope scope("stage_x");
+  }
+  set_profile_sink({});
+  ASSERT_EQ(captured.size(), 1u);
+  EXPECT_EQ(captured[0].first, "stage_x");
+  EXPECT_GE(captured[0].second, 0.0);
+}
+
+TEST(Profile, InertWithoutSink) {
+  // No sink installed: scopes must not emit (and must be safe to construct).
+  {
+    ProfileScope scope("ignored");
+  }
+  bool called = false;
+  set_profile_sink([&](std::string_view, double) { called = true; });
+  set_profile_sink({});
+  {
+    ProfileScope scope("ignored_too");
+  }
+  EXPECT_FALSE(called);
+}
+
 TEST(Log, CustomSinkReceivesMessages) {
   std::vector<std::pair<LogLevel, std::string>> captured;
-  set_log_sink([&](LogLevel lvl, std::string_view msg) { captured.emplace_back(lvl, std::string(msg)); });
+  set_log_sink(
+      [&](LogLevel lvl, std::string_view msg) { captured.emplace_back(lvl, std::string(msg)); });
   log(LogLevel::Warn, "hello");
   set_log_sink(nullptr);  // restore default
   ASSERT_EQ(captured.size(), 1u);

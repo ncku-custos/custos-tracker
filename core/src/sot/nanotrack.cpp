@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "ctrk/profile.hpp"
+
 namespace ctrk {
 
 namespace {
@@ -14,26 +16,26 @@ inline float size_cal(float w, float h) {
   return std::sqrt((w + pad) * (h + pad));
 }
 
-inline float recip_max(float v) { return std::max(v, 1.f / v); }
+inline float recip_max(float v) {
+  return std::max(v, 1.f / v);
+}
 
 }  // namespace
 
 NanoTracker::NanoTracker(const SotConfig& config)
     : cfg_(config),
-      backbone_z_(make_ort_engine(config.backbone_z_path,
-                                  {.intra_op_threads = config.intra_op_threads})),
-      backbone_x_(make_ort_engine(config.backbone_x_path,
-                                  {.intra_op_threads = config.intra_op_threads})),
+      backbone_z_(
+          make_ort_engine(config.backbone_z_path, {.intra_op_threads = config.intra_op_threads})),
+      backbone_x_(
+          make_ort_engine(config.backbone_x_path, {.intra_op_threads = config.intra_op_threads})),
       head_(make_ort_engine(config.head_path, {.intra_op_threads = config.intra_op_threads})) {
   cv::createHanningWindow(hann_, {kScore, kScore}, CV_32F);
   grid_x_.create(kScore, kScore, CV_32F);
   grid_y_.create(kScore, kScore, CV_32F);
   for (int r = 0; r < kScore; ++r)
     for (int c = 0; c < kScore; ++c) {
-      grid_x_.at<float>(r, c) =
-          static_cast<float>((c - kScore / 2) * kStride + kInstance / 2);
-      grid_y_.at<float>(r, c) =
-          static_cast<float>((r - kScore / 2) * kStride + kInstance / 2);
+      grid_x_.at<float>(r, c) = static_cast<float>((c - kScore / 2) * kStride + kInstance / 2);
+      grid_y_.at<float>(r, c) = static_cast<float>((r - kScore / 2) * kStride + kInstance / 2);
     }
   x_blob_.resize(static_cast<size_t>(3) * kInstance * kInstance);
 }
@@ -58,8 +60,8 @@ cv::Mat NanoTracker::subwindow(const cv::Mat& img, int original_sz, int model_sz
   cv::Mat crop;
   if (left_pad || top_pad || right_pad || bottom_pad) {
     cv::Mat padded;
-    cv::copyMakeBorder(img, padded, top_pad, bottom_pad, left_pad, right_pad,
-                       cv::BORDER_CONSTANT, avg);
+    cv::copyMakeBorder(img, padded, top_pad, bottom_pad, left_pad, right_pad, cv::BORDER_CONSTANT,
+                       avg);
     crop = padded(cv::Rect(xmin, ymin, original_sz, original_sz));
   } else {
     crop = img(cv::Rect(xmin, ymin, original_sz, original_sz));
@@ -116,13 +118,28 @@ SotResult NanoTracker::update(const cv::Mat& image) {
   sz_w_ *= scale_z;
   sz_h_ *= scale_z;
 
-  blob_rgb(subwindow(image, static_cast<int>(sx), kInstance), x_blob_);
-  const auto& xin = backbone_x_->input_descs()[0];
-  const auto xf = backbone_x_->run({{xin.name, xin.shape, x_blob_.data()}});
-
-  const auto& hin = head_->input_descs();
-  const auto outs = head_->run({{"input1", hin[0].shape, zf_.data()},
-                                {"input2", hin[1].shape, xf[0].data}});
+  cv::Mat crop;
+  {
+    ProfileScope prof("sot.crop");
+    crop = subwindow(image, static_cast<int>(sx), kInstance);
+  }
+  {
+    ProfileScope prof("sot.blob");
+    blob_rgb(crop, x_blob_);
+  }
+  std::vector<TensorView> xf;
+  {
+    ProfileScope prof("sot.backbone_x");
+    const auto& xin = backbone_x_->input_descs()[0];
+    xf = backbone_x_->run({{xin.name, xin.shape, x_blob_.data()}});
+  }
+  std::vector<TensorView> outs;
+  {
+    ProfileScope prof("sot.head");
+    const auto& hin = head_->input_descs();
+    outs = head_->run({{"input1", hin[0].shape, zf_.data()}, {"input2", hin[1].shape, xf[0].data}});
+  }
+  ProfileScope prof("sot.postproc");
   const float* cls = outs[0].data;  // [1,2,16,16]
   const float* reg = outs[1].data;  // [1,4,16,16]
 

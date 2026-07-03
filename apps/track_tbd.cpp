@@ -2,13 +2,14 @@
 #include <opencv2/imgproc.hpp>
 
 #include <cstdio>
-#include <optional>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <string>
 
 #include "app_common.hpp"
 #include "common/mat_view.hpp"
+#include "ctrk/profile.hpp"
 #include "ctrk/tbd.hpp"
 #include "ctrk/types.hpp"
 
@@ -77,33 +78,48 @@ int main(int argc, char** argv) {
     dump.open(cli.get<std::string>("dump"));
 
   ctrk::StageTimer timer;
+  ctrk::set_profile_sink(
+      [&timer](std::string_view stage, double ms) { timer.add_ms(std::string(stage), ms); });
   cv::Mat frame;
   int64_t t_ns = 0;
   int frame_no = 0;
 
-  while (src->read(frame, t_ns) && sink.wants_more()) {
+  while (sink.wants_more()) {
+    bool got = false;
+    {
+      const auto scope = timer.scope("capture");
+      got = src->read(frame, t_ns);
+    }
+    if (!got) break;
     ++frame_no;  // MOT frame numbers are 1-based
     std::vector<ctrk::Track> tracks;
     {
       const auto scope = timer.scope("detect+track");
       tracks = tracker->update(ctrk::as_frame_view(frame, t_ns));
     }
-    for (const auto& t : tracks) {
-      if (t.state != ctrk::TrackState::Confirmed) continue;
-      char label[64];
-      std::snprintf(label, sizeof(label), "#%d %.2f", t.id, t.score);
-      ctrk::app::draw_box(frame, t.box, id_color(t.id), label);
-      if (dump.is_open()) {
-        char line[128];
-        std::snprintf(line, sizeof(line), "%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,-1,-1,-1\n", frame_no,
-                      t.id, t.box.x, t.box.y, t.box.w, t.box.h, t.score);
-        dump << line;
+    {
+      const auto scope = timer.scope("draw");
+      for (const auto& t : tracks) {
+        if (t.state != ctrk::TrackState::Confirmed) continue;
+        char label[64];
+        std::snprintf(label, sizeof(label), "#%d %.2f", t.id, t.score);
+        ctrk::app::draw_box(frame, t.box, id_color(t.id), label);
+        if (dump.is_open()) {
+          char line[128];
+          std::snprintf(line, sizeof(line), "%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,-1,-1,-1\n", frame_no,
+                        t.id, t.box.x, t.box.y, t.box.w, t.box.h, t.score);
+          dump << line;
+        }
       }
+      const auto& stats = timer.stats().at("detect+track");
+      ctrk::app::draw_hud(frame, timer, stats.p50_ms() > 0 ? 1000.0 / stats.p50_ms() : 0.0);
     }
-    const auto& stats = timer.stats().at("detect+track");
-    ctrk::app::draw_hud(frame, timer, stats.p50_ms() > 0 ? 1000.0 / stats.p50_ms() : 0.0);
-    sink.write(frame);
+    {
+      const auto scope = timer.scope("encode");
+      sink.write(frame);
+    }
   }
+  ctrk::set_profile_sink({});
 
   std::printf("frames: %d\n", src->frames_read());
   ctrk::app::print_stage_summary(timer);

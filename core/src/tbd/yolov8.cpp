@@ -7,6 +7,7 @@
 #include "common/mat_view.hpp"
 #include "ctrk/detector.hpp"
 #include "ctrk/infer.hpp"
+#include "ctrk/profile.hpp"
 #include "tbd/yolov8_decode.hpp"
 
 namespace ctrk {
@@ -71,8 +72,8 @@ class Yolov8Detector final : public IDetector {
         engine_(make_ort_engine(config.model_path, {.intra_op_threads = config.intra_op_threads})) {
     const auto& in = engine_->input_descs();
     const auto& out = engine_->output_descs();
-    if (in.size() != 1 || out.size() != 1 || in[0].shape.size() != 4 ||
-        out[0].shape.size() != 3 || in[0].shape[2] != in[0].shape[3])
+    if (in.size() != 1 || out.size() != 1 || in[0].shape.size() != 4 || out[0].shape.size() != 3 ||
+        in[0].shape[2] != in[0].shape[3])
       throw std::runtime_error("unexpected yolov8 graph layout: " + config.model_path);
     input_size_ = static_cast<int>(in[0].shape[2]);
     num_classes_ = static_cast<int>(out[0].shape[1]) - 4;
@@ -84,28 +85,37 @@ class Yolov8Detector final : public IDetector {
     const cv::Mat img = as_mat(frame);
     const LetterboxMap map = letterbox_map(img.cols, img.rows, input_size_, input_size_);
 
-    // Letterbox onto a 114-grey canvas, then RGB float CHW in [0,1].
-    cv::Mat canvas(input_size_, input_size_, CV_8UC3, cv::Scalar(114, 114, 114));
-    const int nw = static_cast<int>(std::round(img.cols * map.scale));
-    const int nh = static_cast<int>(std::round(img.rows * map.scale));
-    const int px = (input_size_ - nw) / 2, py = (input_size_ - nh) / 2;
-    cv::resize(img, canvas(cv::Rect(px, py, nw, nh)), cv::Size(nw, nh));
+    {
+      ProfileScope prof("det.preprocess");
+      // Letterbox onto a 114-grey canvas, then RGB float CHW in [0,1].
+      cv::Mat canvas(input_size_, input_size_, CV_8UC3, cv::Scalar(114, 114, 114));
+      const int nw = static_cast<int>(std::round(img.cols * map.scale));
+      const int nh = static_cast<int>(std::round(img.rows * map.scale));
+      const int px = (input_size_ - nw) / 2, py = (input_size_ - nh) / 2;
+      cv::resize(img, canvas(cv::Rect(px, py, nw, nh)), cv::Size(nw, nh));
 
-    const int plane = input_size_ * input_size_;
-    for (int y = 0; y < input_size_; ++y) {
-      const cv::Vec3b* row = canvas.ptr<cv::Vec3b>(y);
-      for (int x = 0; x < input_size_; ++x) {
-        const int i = y * input_size_ + x;
-        blob_[0 * plane + i] = row[x][2] / 255.f;  // R (canvas is BGR)
-        blob_[1 * plane + i] = row[x][1] / 255.f;  // G
-        blob_[2 * plane + i] = row[x][0] / 255.f;  // B
+      const int plane = input_size_ * input_size_;
+      for (int y = 0; y < input_size_; ++y) {
+        const cv::Vec3b* row = canvas.ptr<cv::Vec3b>(y);
+        for (int x = 0; x < input_size_; ++x) {
+          const int i = y * input_size_ + x;
+          blob_[0 * plane + i] = row[x][2] / 255.f;  // R (canvas is BGR)
+          blob_[1 * plane + i] = row[x][1] / 255.f;  // G
+          blob_[2 * plane + i] = row[x][0] / 255.f;  // B
+        }
       }
     }
 
-    const auto& in = engine_->input_descs()[0];
-    const auto out = engine_->run({{in.name, in.shape, blob_.data()}});
-    return decode_yolov8(out[0].data, num_classes_, num_anchors_, config_.conf_thr,
-                         config_.nms_iou, map, config_.keep_classes);
+    std::vector<TensorView> out;
+    {
+      ProfileScope prof("det.infer");
+      const auto& in = engine_->input_descs()[0];
+      out = engine_->run({{in.name, in.shape, blob_.data()}});
+    }
+
+    ProfileScope prof("det.decode");
+    return decode_yolov8(out[0].data, num_classes_, num_anchors_, config_.conf_thr, config_.nms_iou,
+                         map, config_.keep_classes);
   }
 
  private:

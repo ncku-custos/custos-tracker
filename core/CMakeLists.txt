@@ -7,6 +7,7 @@ add_library(ctrk_common STATIC
   src/common/munkres.cpp
   src/common/subwindow.cpp
   src/common/log.cpp
+  src/common/profile.cpp
 )
 add_library(ctrk::common ALIAS ctrk_common)
 
