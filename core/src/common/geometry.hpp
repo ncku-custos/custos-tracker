@@ -6,6 +6,17 @@
 
 namespace ctrk {
 
+// Row-major 2x3 affine (a11 a12 tx / a21 a22 ty) mapping previous-frame
+// pixel coordinates into current-frame ones — the camera-motion warp
+// (RESULTS.md S3.4). Identity by default.
+struct Affine23 {
+  float a11 = 1.f, a12 = 0.f, tx = 0.f;
+  float a21 = 0.f, a22 = 1.f, ty = 0.f;
+  bool identity() const {
+    return a11 == 1.f && a12 == 0.f && tx == 0.f && a21 == 0.f && a22 == 1.f && ty == 0.f;
+  }
+};
+
 // Intersection-over-union of two boxes; 0 when either has non-positive area.
 float iou(const BBox& a, const BBox& b);
 

@@ -62,27 +62,31 @@ void ByteTracker::mark_matched(STrack& track, const Detection& det) {
     track.state = TrackState::Confirmed;
 }
 
-std::vector<Track> ByteTracker::coast(float dt) {
+std::vector<Track> ByteTracker::coast(float dt, const Affine23& warp) {
   coasted_dt_ += dt;
   std::vector<Track> out;
   out.reserve(tracks_.size());
   for (auto& t : tracks_) {
     t.kf.predict(dt);
+    if (!warp.identity()) t.kf.apply_affine(warp);
     t.age++;
     out.push_back({t.id, t.kf.box(), t.score, t.class_id, t.state, t.age, t.hits});
   }
   return out;
 }
 
-std::vector<Track> ByteTracker::update(const std::vector<Detection>& detections, float dt) {
+std::vector<Track> ByteTracker::update(const std::vector<Detection>& detections, float dt,
+                                       const Affine23& warp) {
   const float coasted = coasted_dt_;
   coasted_dt_ = 0.f;
   eff_dt_ = coasted + dt;
 
-  // Predict every live track forward.
+  // Predict every live track forward, then warp into the current camera
+  // pose (BoT-SORT order: predict, GMC-correct, associate).
   std::vector<BBox> predicted(tracks_.size());
   for (size_t i = 0; i < tracks_.size(); ++i) {
     tracks_[i].kf.predict(dt);
+    if (!warp.identity()) tracks_[i].kf.apply_affine(warp);
     tracks_[i].age++;
     tracks_[i].time_since_update++;
     predicted[i] = tracks_[i].kf.box();

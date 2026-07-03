@@ -35,6 +35,7 @@ if(CTRK_WITH_ORT)
     src/tbd/yolov8.cpp
     src/tbd/byte_tracker.cpp
     src/tbd/multi_tracker.cpp
+    src/tbd/gmc.cpp
   )
   add_library(ctrk::tbd ALIAS ctrk_tbd)
   target_include_directories(ctrk_tbd
@@ -43,7 +44,8 @@ if(CTRK_WITH_ORT)
       $<INSTALL_INTERFACE:include>
     PRIVATE
       src)
-  target_link_libraries(ctrk_tbd PUBLIC ctrk::common ctrk::infer PRIVATE opencv_core opencv_imgproc)
+  target_link_libraries(ctrk_tbd PUBLIC ctrk::common ctrk::infer
+    PRIVATE opencv_core opencv_imgproc opencv_video opencv_calib3d)
   install(TARGETS ctrk_tbd EXPORT ctrkTargets)
 
   add_library(ctrk_sot STATIC

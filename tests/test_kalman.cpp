@@ -49,6 +49,41 @@ TEST(Kalman, NsaScaleTightensAndDefaultIsUnchanged) {
   EXPECT_TRUE(std::isfinite(extreme.box().cx()));
 }
 
+TEST(Kalman, ApplyAffineWarpsPositionVelocityAndScale) {
+  // Pure translation: position shifts, velocity and size untouched.
+  KalmanBox kf;
+  kf.initiate({100, 100, 50, 100});
+  kf.predict();
+  kf.update({104, 102, 50, 100});  // learn a small velocity
+  const BBox before = kf.box();
+  kf.apply_affine({1, 0, 20, 0, 1, -10});
+  const BBox t = kf.box();
+  EXPECT_NEAR(t.cx(), before.cx() + 20.f, 1e-3f);
+  EXPECT_NEAR(t.cy(), before.cy() - 10.f, 1e-3f);
+  EXPECT_NEAR(t.w, before.w, 1e-3f);
+  EXPECT_NEAR(t.h, before.h, 1e-3f);
+
+  // Isotropic scale: height (and width via the invariant aspect) scales.
+  KalmanBox ks;
+  ks.initiate({100, 100, 50, 100});
+  ks.apply_affine({1.5f, 0, 0, 0, 1.5f, 0});
+  EXPECT_NEAR(ks.box().h, 150.f, 1e-2f);
+  EXPECT_NEAR(ks.box().w, 75.f, 1e-2f);
+
+  // 90-degree rotation rotates the velocity vector with the camera.
+  KalmanBox kr;
+  kr.initiate({0, 0, 10, 20});
+  kr.predict();
+  kr.update({8, 0, 10, 20});  // rightward motion
+  kr.predict();
+  const float moving_x = kr.box().cx();
+  EXPECT_GT(moving_x, 4.f);  // sanity: velocity learned
+  kr.apply_affine({0, -1, 0, 1, 0, 0});
+  kr.predict();  // motion should now be downward (+y), not rightward
+  const BBox r = kr.box();
+  EXPECT_GT(r.cy(), 4.f);
+}
+
 TEST(Kalman, ConvergesOnNoisyConstantVelocityTrack) {
   std::mt19937 rng(7);
   std::normal_distribution<float> noise(0.f, 1.5f);

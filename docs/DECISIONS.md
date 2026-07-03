@@ -156,3 +156,20 @@ only if a real drone scenario shows both embedders failing (that evidence
 would also justify the model cost). References freeze at init by design:
 re-ID must answer "is this the ORIGINAL target", and template adaptation
 is the separate dual-template experiment (step-3 item 7).
+
+## D-0013 — GMC: sparse-flow partial affine, opt-in on host, default-on posture for the drone (2026-07-03)
+
+Step-3 item 2 (RESULTS.md S3.4). Method: BoT-SORT-style sparse LK flow on
+a ~480 px gray working copy + RANSAC partial affine, applied to the KF
+state of every track on every frame (coast frames included) — full
+BoT-SORT form with covariance congruence via `KalmanBox::apply_affine`.
+Verdict: kept, `--gmc`, OFF by default on the host — the moving-camera
+gain is decisive (MOT16-13 MOTA +5.4 / IDF1 +9.7 at N=1) and the
+static-camera check is within gates, but it prices every coast frame at
+~2 ms (vs ~4 us), which inverts the step-2 detect-every-N latency story
+on a machine where the camera may not move. For the step-4 drone
+deployment the camera ALWAYS moves: plan to flip GMC on as the SoC
+default operating point and re-measure there. Engineering lesson pinned
+in S3.4: covariance congruences in float32 need re-symmetrization or
+NSA-small R exposes the Cholesky solve — any future state-transform
+feature (e.g. homography GMC) must keep the `(P+P')/2` line.

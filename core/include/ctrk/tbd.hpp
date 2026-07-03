@@ -39,9 +39,16 @@ struct AssocConfig {
   bool velocity_seed = false;              // seed newborn KF velocity at its first re-match
 };
 
+// Camera-motion compensation (RESULTS.md S3.4): estimate the inter-frame
+// camera warp (grayscale sparse LK flow + RANSAC partial affine, BoT-SORT
+// style) and apply it to every track's motion state on every frame —
+// coast frames included. Off = static-camera behavior.
+enum class GmcMethod : uint8_t { Off, SparseFlow };
+
 struct TbdConfig {
   Yolov8Config detector;
   AssocConfig assoc;
+  GmcMethod gmc = GmcMethod::Off;
   double nominal_fps = 30.0;  // converts FrameView timestamps to KF dt
   // Run the detector every Nth frame; the frames between coast on the
   // Kalman prediction alone. Association state (misses, max_age, the

@@ -2,6 +2,7 @@
 
 #include <opencv2/core.hpp>
 
+#include "common/geometry.hpp"
 #include "ctrk/types.hpp"
 
 namespace ctrk {
@@ -25,6 +26,11 @@ class KalmanBox {
   // its first two detections instead of blending from the zero-velocity
   // prior — the detect-interval churn remedy (RESULTS.md S3.2).
   void seed_velocity(const BBox& z, float dt);
+  // Warp the state into camera-motion-compensated coordinates (BoT-SORT
+  // GMC, RESULTS.md S3.4): position takes the full affine, velocity the
+  // linear part, height the isotropic scale (aspect is similarity-
+  // invariant), and the covariance position/velocity blocks rotate along.
+  void apply_affine(const Affine23& w);
 
   bool initialized() const { return init_; }
   BBox box() const;

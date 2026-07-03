@@ -1,8 +1,10 @@
 #include <algorithm>
 
+#include "common/mat_view.hpp"
 #include "ctrk/profile.hpp"
 #include "ctrk/tbd.hpp"
 #include "tbd/byte_tracker.hpp"
+#include "tbd/gmc.hpp"
 
 namespace ctrk {
 
@@ -13,6 +15,8 @@ struct MultiTracker::Impl {
   TbdConfig cfg;
   std::unique_ptr<IDetector> detector;
   ByteTracker tracker;
+  GmcEstimator gmc;               // stateful: previous downscaled gray (S3.4)
+  std::vector<BBox> gmc_exclude;  // last frame's track boxes, masked from GMC corners
   int64_t prev_t_ns = -1;
   int until_detect = 0;  // frames left to coast before the next detect
 };
@@ -33,16 +37,39 @@ std::vector<Track> MultiTracker::update(const FrameView& frame) {
   }
   impl_->prev_t_ns = frame.t_ns;
 
+  // The camera warp is per-frame state: it must be estimated on EVERY frame
+  // (coast frames included) or the previous-gray chain skips frames and the
+  // warp no longer matches the track states' pose. Last frame's track boxes
+  // are masked out of the corner detector (moving objects hijack the
+  // estimate in dense scenes — S3.4).
+  Affine23 warp;
+  if (impl_->cfg.gmc == GmcMethod::SparseFlow) {
+    ProfileScope prof("gmc");
+    warp = impl_->gmc.estimate(as_mat(frame), impl_->gmc_exclude);
+  }
+
+  const bool track_gmc = impl_->cfg.gmc != GmcMethod::Off;
   if (impl_->until_detect > 0) {
     impl_->until_detect--;
     ProfileScope prof("coast");
-    return impl_->tracker.coast(dt);
+    auto out = impl_->tracker.coast(dt, warp);
+    if (track_gmc) {
+      impl_->gmc_exclude.clear();
+      for (const auto& t : out) impl_->gmc_exclude.push_back(t.box);
+    }
+    return out;
   }
   impl_->until_detect = std::max(1, impl_->cfg.detect_interval) - 1;
 
   const std::vector<Detection> dets = impl_->detector->detect(frame);
   ProfileScope prof("assoc");
-  return impl_->tracker.update(dets, dt);
+  auto out = impl_->tracker.update(dets, dt, warp);
+  if (track_gmc) {
+    impl_->gmc_exclude.clear();
+    for (const auto& d : dets) impl_->gmc_exclude.push_back(d.box);
+    for (const auto& t : out) impl_->gmc_exclude.push_back(t.box);
+  }
+  return out;
 }
 
 }  // namespace ctrk

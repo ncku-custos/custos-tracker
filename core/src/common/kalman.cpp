@@ -68,6 +68,41 @@ void KalmanBox::update(const BBox& z, float r_scale) {
   clamp_state();
 }
 
+void KalmanBox::apply_affine(const Affine23& w) {
+  CV_Assert(init_);
+  const float x = mean_(0), y = mean_(1);
+  mean_(0) = w.a11 * x + w.a12 * y + w.tx;
+  mean_(1) = w.a21 * x + w.a22 * y + w.ty;
+  const float vx = mean_(4), vy = mean_(5);
+  mean_(4) = w.a11 * vx + w.a12 * vy;
+  mean_(5) = w.a21 * vx + w.a22 * vy;
+  const float s = std::sqrt(std::abs(w.a11 * w.a22 - w.a12 * w.a21));
+  mean_(3) *= s;
+  mean_(7) *= s;
+
+  // J over [x y a h | vx vy va vh]: linear part on the position and
+  // velocity pairs, s on the heights, aspect untouched.
+  auto J = cv::Matx<float, 8, 8>::eye();
+  J(0, 0) = w.a11;
+  J(0, 1) = w.a12;
+  J(1, 0) = w.a21;
+  J(1, 1) = w.a22;
+  J(4, 4) = w.a11;
+  J(4, 5) = w.a12;
+  J(5, 4) = w.a21;
+  J(5, 5) = w.a22;
+  J(3, 3) = s;
+  J(7, 7) = s;
+  cov_ = J * cov_ * J.t();
+  // Re-symmetrize: repeated float32 congruences slowly de-symmetrize P, and
+  // once S = HPH' + R loses PSD-ness the Cholesky solve in update() returns
+  // garbage gains — with NSA's small R there is nothing left to regularize
+  // it (S3.4 post-mortem: fragmentation on MOT16-04 N=2 under sub-pixel
+  // warps).
+  cov_ = 0.5f * (cov_ + cov_.t());
+  clamp_state();
+}
+
 void KalmanBox::seed_velocity(const BBox& z, float dt) {
   CV_Assert(init_);
   if (dt <= 0.f) return;

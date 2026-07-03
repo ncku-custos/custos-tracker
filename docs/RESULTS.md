@@ -481,3 +481,43 @@ configuration). Default-config mini-OTB is untouched: 0.631 exact, 75
 tests green (oracle + embed test running). Costs: NanoZ embed ≈ one extra
 z-graph pass per checked frame (FPS column above shows the drift-check
 runs slower on Lost-heavy sequences); HSV is ~free.
+
+## S3.4 — GMC (BoT-SORT sparse-flow), opt-in: transformative on the moving camera (2026-07-03)
+
+`--gmc`: downscaled-gray LK flow + RANSAC partial affine per frame (coast
+frames included — the previous-gray chain must not skip), applied to every
+track's KF state (position full affine, velocity linear part, height the
+isotropic scale, covariance congruence) via the new
+`KalmanBox::apply_affine`. Last frame's boxes are masked out of the corner
+detector. Estimator unit-tested on synthetic pans incl. the downscale path.
+
+| MOTA / IDSW / IDF1 | defaults | `--gmc` |
+|---|---|---|
+| MOT16-04 N=1 (static cam) | 31.3 / 23 / 43.9 | 31.2 / 23 / **45.2** |
+| MOT16-04 N=2 | 29.9 / 18 / 44.9 | 29.9 / 19 / 44.1 |
+| MOT16-13 N=1 (moving cam) | 13.8 / 5 / 22.4 | **19.2** / 6 / **32.1** |
+| MOT16-13 N=2 | 14.7 / 7 / 23.5 | **18.5** / 5 / **30.7** |
+
+- **Moving camera: the largest single quality jump of step 3** (+5.4 MOTA,
+  +9.7 IDF1 at N=1; FN −687). Static camera: within gates at both
+  intervals (the neutrality safety check).
+- **Cost**: `gmc` stage 2.05 ms p50 at 1080p — coast frames go from ~4 us
+  to ~2 ms, so the N=2 effective-latency story changes when it is on.
+  Kept OPT-IN this step (host latency headline unchanged); D-0013 argues
+  default-on for the drone deployment where the camera always moves.
+- **Post-mortem worth recording**: the first GMC runs collapsed MOT16-04
+  N=2 (IDSW 18 -> 56, IDF1 44.9 -> 29.4) ONLY when NSA was also on, with
+  sub-pixel warps (max |t| 1.2 px, inlier ratio ~1.0 — measured, so not
+  estimation noise). Root cause was numerical, not algorithmic: repeated
+  float32 `J P J^T` congruences slowly de-symmetrize the covariance, and
+  once `S = H P H' + R` loses PSD-ness the DECOMP_CHOLESKY solve returns
+  garbage gains — classic-R runs never noticed because the larger R
+  re-regularizes S, NSA's small R does not. One-line fix: re-symmetrize P
+  after the congruence (`P = (P + P')/2`). Two hypotheses were tested and
+  rejected on the way (crowd corners hijacking RANSAC — masking changed
+  nothing; NSA near-deadbeat gain oscillation — flooring r_scale at 0.1
+  and 0.3 changed nothing); dead ends recorded per the process rule.
+- Not taken: feeding the warp into the SOT search window. The SOT crop is
+  target-centered (camera motion mostly cancels through the tracked
+  position) and mini-OTB has no scenario isolating the effect; revisit on
+  drone footage in step 4 if search-window loss shows up.

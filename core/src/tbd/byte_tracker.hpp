@@ -18,14 +18,18 @@ class ByteTracker {
  public:
   explicit ByteTracker(const AssocConfig& config) : cfg_(config) {}
 
-  // dt in frame units (1.0 = one nominal frame).
-  std::vector<Track> update(const std::vector<Detection>& detections, float dt = 1.f);
+  // dt in frame units (1.0 = one nominal frame). `warp` is the previous->
+  // current camera-motion affine (GMC, S3.4), applied to every predicted
+  // state before association; identity = no compensation.
+  std::vector<Track> update(const std::vector<Detection>& detections, float dt = 1.f,
+                            const Affine23& warp = {});
 
   // Detector-free step: advance every live track's motion model, no
   // association and no lifecycle mutation — misses, max_age and the stage-2
   // "matched last frame" window all keep counting in detect-frame units.
-  // This is what makes a detect-every-N cadence safe at any N.
-  std::vector<Track> coast(float dt = 1.f);
+  // This is what makes a detect-every-N cadence safe at any N. The per-frame
+  // camera warp must be applied here too, or coasted boxes lag the camera.
+  std::vector<Track> coast(float dt = 1.f, const Affine23& warp = {});
 
  private:
   struct STrack {

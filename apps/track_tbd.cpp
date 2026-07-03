@@ -27,6 +27,7 @@ const char* kUsage =
     "{tentative-relax | 0.3 | relax the stage-3 IoU gate per coasted frame (S3.2)}"
     "{tentative-patience | 1 | detect-frame misses a tentative track survives (S3.2)}"
     "{velocity-seed |   | seed newborn KF velocity from its first re-match (S3.2)}"
+    "{gmc      |       | camera-motion compensation via sparse flow (S3.4)}"
     "{threads  | 4     | detector intra-op threads}"
     "{no-spin  |       | stop the ORT pool busy-waiting between runs (lower idle CPU)}"
     "{dnnl     |       | experimental oneDNN execution provider}"
@@ -79,6 +80,7 @@ int main(int argc, char** argv) {
   cfg.assoc.tentative_relax_per_coast = cli.get<float>("tentative-relax");
   cfg.assoc.tentative_patience = cli.get<int>("tentative-patience");
   cfg.assoc.velocity_seed = cli.has("velocity-seed");
+  cfg.gmc = cli.has("gmc") ? ctrk::GmcMethod::SparseFlow : ctrk::GmcMethod::Off;
   cfg.detect_interval = cli.get<int>("detect-every");
   cfg.nominal_fps = src->fps();
   std::optional<ctrk::MultiTracker> tracker;
