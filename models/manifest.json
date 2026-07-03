@@ -1,0 +1,33 @@
+{
+  "comment": "Pinned model provenance. get_models.sh fetches into models/cache/ and verifies SHA256. YOLOv8n is not listed here: its ONNX is produced locally by tools/export/export_yolo.py (opset 12, static shapes, nms=False) because Ultralytics does not publish a canonical ONNX artifact.",
+  "models": [
+    {
+      "name": "nanotrackv2_backbone",
+      "file": "nanotrackv2_nanotrack_backbone_sim.onnx",
+      "url": "https://raw.githubusercontent.com/HonglinChu/SiamTrackers/master/NanoTrack/models/nanotrackv2/nanotrack_backbone_sim.onnx",
+      "sha256": "530bdd0cd00f19afab79a863e71ba71e3312395a5dc9151af675082bdaaa2fc4",
+      "note": "Same file cv::TrackerNano consumes (backbone, shared by template 127 and search 255 inputs). M2 export re-emits static z/x variants."
+    },
+    {
+      "name": "nanotrackv2_head",
+      "file": "nanotrackv2_nanotrack_head_sim.onnx",
+      "url": "https://raw.githubusercontent.com/HonglinChu/SiamTrackers/master/NanoTrack/models/nanotrackv2/nanotrack_head_sim.onnx",
+      "sha256": "0d8c0637be849f092cc7236cae02e55c8b9455ebe37ba50601d6115db4247cd9",
+      "note": "Same file cv::TrackerNano consumes (correlation head)."
+    },
+    {
+      "name": "nanotrackv3_backbone",
+      "file": "nanotrackv3_nanotrack_backbone.onnx",
+      "url": "https://raw.githubusercontent.com/HonglinChu/SiamTrackers/master/NanoTrack/models/nanotrackv3/nanotrack_backbone.onnx",
+      "sha256": "50be1320abf9384fd3479ea829f95e244cf3f3838190c5ab60c750fb8c1ce828",
+      "note": "M2 spike candidate: adopt if it passes the cv::TrackerNano oracle path (D-0005)."
+    },
+    {
+      "name": "nanotrackv3_head",
+      "file": "nanotrackv3_nanotrack_head.onnx",
+      "url": "https://raw.githubusercontent.com/HonglinChu/SiamTrackers/master/NanoTrack/models/nanotrackv3/nanotrack_head.onnx",
+      "sha256": "75357903be3f4817c965af16cb5a11fd32b1467f597a408405a98635ac63f61d",
+      "note": "M2 spike candidate (paired with nanotrackv3_backbone)."
+    }
+  ]
+}

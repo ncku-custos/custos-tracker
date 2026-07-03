@@ -1,0 +1,8 @@
+# Tooling only — never in the runtime path. Usage:
+#   python3 -m venv tools/.venv && tools/.venv/bin/pip install -r tools/requirements.txt
+ultralytics>=8.3,<9      # YOLOv8n export (AGPL — see docs/DECISIONS.md D-0003)
+onnx>=1.16
+onnxsim>=0.4.36          # graph simplification + static input shape rewrite
+onnxruntime>=1.18        # export-time verification against the C++ runtime
+numpy>=1.26
+motmetrics>=1.4          # CLEAR metrics for M1 (never reimplement matching)
