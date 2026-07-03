@@ -21,9 +21,9 @@ class MosseTracker {
   SotResult update(const cv::Mat& image);
 
  private:
-  static constexpr int kSize = 64;         // filter resolution
-  static constexpr float kSigma = 2.f;     // gaussian target
-  static constexpr float kLr = 0.125f;     // online update rate
+  static constexpr int kSize = 64;      // filter resolution
+  static constexpr float kSigma = 2.f;  // gaussian target
+  static constexpr float kLr = 0.125f;  // online update rate
   static constexpr float kEps = 1e-5f;
 
   cv::Mat preprocess(const cv::Mat& patch) const;  // gray, log, norm, Hann

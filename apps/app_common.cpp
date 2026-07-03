@@ -104,8 +104,8 @@ void draw_hud(cv::Mat& frame, const StageTimer& timer, double fps_now) {
 void print_stage_summary(const StageTimer& timer) {
   std::printf("%-16s %8s %10s %10s %10s\n", "stage", "n", "mean_ms", "p50_ms", "p95_ms");
   for (const auto& [stage, stats] : timer.stats()) {
-    std::printf("%-16s %8zu %10.3f %10.3f %10.3f\n", stage.c_str(), stats.count(),
-                stats.mean_ms(), stats.p50_ms(), stats.p95_ms());
+    std::printf("%-16s %8zu %10.3f %10.3f %10.3f\n", stage.c_str(), stats.count(), stats.mean_ms(),
+                stats.p50_ms(), stats.p95_ms());
   }
 }
 
@@ -118,9 +118,10 @@ bool write_bench_json(const StageTimer& timer, const std::string& path, int fram
   std::fprintf(f, "{\n  \"frames\": %d,\n  \"stages\": {", frames);
   bool first = true;
   for (const auto& [stage, stats] : timer.stats()) {
-    std::fprintf(f, "%s\n    \"%s\": {\"n\": %zu, \"mean_ms\": %.3f, \"p50_ms\": %.3f, \"p95_ms\": %.3f}",
-                 first ? "" : ",", stage.c_str(), stats.count(), stats.mean_ms(), stats.p50_ms(),
-                 stats.p95_ms());
+    std::fprintf(
+        f, "%s\n    \"%s\": {\"n\": %zu, \"mean_ms\": %.3f, \"p50_ms\": %.3f, \"p95_ms\": %.3f}",
+        first ? "" : ",", stage.c_str(), stats.count(), stats.mean_ms(), stats.p50_ms(),
+        stats.p95_ms());
     first = false;
   }
   std::fprintf(f, "\n  }\n}\n");

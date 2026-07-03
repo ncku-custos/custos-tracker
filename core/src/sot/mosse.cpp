@@ -83,8 +83,8 @@ void MosseTracker::init(const cv::Mat& image, const BBox& target) {
   train(preprocess(base), 1.f);
   for (int k = -2; k <= 2; ++k) {
     if (k == 0) continue;
-    const cv::Mat rot = cv::getRotationMatrix2D({kSize / 2.f, kSize / 2.f},
-                                                static_cast<double>(k) * 2.0, 1.0);
+    const cv::Mat rot =
+        cv::getRotationMatrix2D({kSize / 2.f, kSize / 2.f}, static_cast<double>(k) * 2.0, 1.0);
     cv::Mat warped;
     cv::warpAffine(base, warped, rot, base.size(), cv::INTER_LINEAR, cv::BORDER_REFLECT);
     train(preprocess(warped), 0.5f);
@@ -108,8 +108,7 @@ SotResult MosseTracker::update(const cv::Mat& image) {
     cv::Mat f_fft;
     cv::dft(preprocess(patch), f_fft, cv::DFT_COMPLEX_OUTPUT);
     cv::Mat resp;
-    cv::idft(spec_mul(filter, f_fft, /*conj_b=*/false), resp,
-             cv::DFT_SCALE | cv::DFT_REAL_OUTPUT);
+    cv::idft(spec_mul(filter, f_fft, /*conj_b=*/false), resp, cv::DFT_SCALE | cv::DFT_REAL_OUTPUT);
 
     double peak;
     cv::Point loc;

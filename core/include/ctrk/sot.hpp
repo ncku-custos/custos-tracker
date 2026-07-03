@@ -43,13 +43,13 @@ struct SotConfig {
 // The best candidate re-initializes the tracker template (probation:
 // Unstable until the score proves the re-lock).
 struct ReacquireConfig {
-  int class_id = -1;              // required detector class; -1 accepts any
-  int detect_every = 3;           // detector cadence (frames) while Lost
-  float min_score = 0.4f;         // detector confidence floor for candidates
-  float size_low = 0.5f;          // candidate/last size ratio gate
+  int class_id = -1;       // required detector class; -1 accepts any
+  int detect_every = 3;    // detector cadence (frames) while Lost
+  float min_score = 0.4f;  // detector confidence floor for candidates
+  float size_low = 0.5f;   // candidate/last size ratio gate
   float size_high = 2.f;
-  float base_radius_frac = 1.5f;  // search radius, in last-box diagonals...
-  float growth_per_frame = 0.05f; // ...growing per lost frame
+  float base_radius_frac = 1.5f;   // search radius, in last-box diagonals...
+  float growth_per_frame = 0.05f;  // ...growing per lost frame
 };
 
 // Single-object tracker facade. init() with a target box, then update() per

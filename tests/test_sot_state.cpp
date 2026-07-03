@@ -20,8 +20,8 @@ TEST(SotState, OcclusionDrivesUnstableThenLost) {
   opt.occluder_rect = {60, 110, 160, 160};
   opt.occluder_from = 30;
   opt.occluder_to = 60;
-  synth::Sequence seq(opt, {{.box0 = {100, 150, 60, 60}, .vx = 0.f, .vy = 0.f,
-                             .color = {0, 60, 220}}});
+  synth::Sequence seq(opt,
+                      {{.box0 = {100, 150, 60, 60}, .vx = 0.f, .vy = 0.f, .color = {0, 60, 220}}});
 
   SotConfig cfg;
   cfg.backend = SotBackend::Mosse;
@@ -53,8 +53,8 @@ TEST(SotState, InitResetsTheStreak) {
   opt.occluder = true;
   opt.occluder_rect = {60, 110, 160, 160};
   opt.occluder_from = 5;
-  synth::Sequence seq(opt, {{.box0 = {100, 150, 60, 60}, .vx = 0.f, .vy = 0.f,
-                             .color = {0, 60, 220}}});
+  synth::Sequence seq(opt,
+                      {{.box0 = {100, 150, 60, 60}, .vx = 0.f, .vy = 0.f, .color = {0, 60, 220}}});
 
   SotConfig cfg;
   cfg.backend = SotBackend::Mosse;

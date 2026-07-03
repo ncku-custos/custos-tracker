@@ -46,8 +46,7 @@ struct SotTracker::Impl {
   std::optional<Detection> pick_candidate(const std::vector<Detection>& dets) const {
     const float diag = std::hypot(last_good.w, last_good.h);
     const float radius = diag * (reacquire_cfg.base_radius_frac +
-                                 reacquire_cfg.growth_per_frame *
-                                     static_cast<float>(frames_lost));
+                                 reacquire_cfg.growth_per_frame * static_cast<float>(frames_lost));
     std::optional<Detection> best;
     float best_dist = radius;
     for (const auto& d : dets) {
@@ -130,8 +129,7 @@ SotResult SotTracker::update(const FrameView& frame) {
   {
     char msg[96];
     std::snprintf(msg, sizeof(msg), "sot: re-acquired at %.0f,%.0f (det score %.2f, lost %d)",
-                  candidate->box.cx(), candidate->box.cy(), candidate->score,
-                  impl_->frames_lost);
+                  candidate->box.cx(), candidate->box.cy(), candidate->score, impl_->frames_lost);
     log(LogLevel::Info, msg);
   }
   r.box = candidate->box;

@@ -141,8 +141,7 @@ std::vector<Track> ByteTracker::update(const std::vector<Detection>& detections,
   std::vector<Track> out;
   out.reserve(tracks_.size());
   for (const auto& t : tracks_)
-    out.push_back(
-        {t.id, t.kf.box(), t.score, t.class_id, t.state, t.age, t.hits});
+    out.push_back({t.id, t.kf.box(), t.score, t.class_id, t.state, t.age, t.hits});
   return out;
 }
 

@@ -37,8 +37,8 @@ TEST(OrtEngine, RunsAndIsDeterministic) {
 
   const auto out1 = engine->run({{in.name, in.shape, input.data()}});
   ASSERT_EQ(out1.size(), 1u);
-  const auto n = std::accumulate(out1[0].shape.begin(), out1[0].shape.end(), int64_t{1},
-                                 std::multiplies<>());
+  const auto n =
+      std::accumulate(out1[0].shape.begin(), out1[0].shape.end(), int64_t{1}, std::multiplies<>());
   ASSERT_GT(n, 0);
   const std::vector<float> first(out1[0].data, out1[0].data + n);
   for (float v : first) ASSERT_TRUE(std::isfinite(v));

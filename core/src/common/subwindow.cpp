@@ -25,8 +25,8 @@ cv::Mat crop_subwindow(const cv::Mat& img, float cx, float cy, int original_sz, 
   cv::Mat patch;
   if (left_pad || top_pad || right_pad || bottom_pad) {
     cv::Mat padded;
-    cv::copyMakeBorder(img, padded, top_pad, bottom_pad, left_pad, right_pad,
-                       cv::BORDER_CONSTANT, pad_value);
+    cv::copyMakeBorder(img, padded, top_pad, bottom_pad, left_pad, right_pad, cv::BORDER_CONSTANT,
+                       pad_value);
     patch = padded(cv::Rect(xmin + left_pad, ymin + top_pad, original_sz, original_sz));
   } else {
     patch = img(cv::Rect(xmin, ymin, original_sz, original_sz));

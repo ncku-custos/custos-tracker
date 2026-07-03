@@ -35,8 +35,7 @@ struct Options {
 // no state, safe to use from multiple tests.
 class Sequence {
  public:
-  Sequence(Options opt, std::vector<Target> targets)
-      : opt_(opt), targets_(std::move(targets)) {
+  Sequence(Options opt, std::vector<Target> targets) : opt_(opt), targets_(std::move(targets)) {
     // Fixed speckle background so correlation trackers have structure to
     // reject, and detectors see non-uniform context.
     cv::Mat bg(opt_.height, opt_.width, CV_8UC3);
@@ -69,8 +68,7 @@ class Sequence {
       // Interior texture: contrasting inner block + diagonal, so the target
       // is not a flat patch (correlation trackers need gradients).
       const cv::Rect inner(r.x + r.width / 4, r.y + r.height / 4, r.width / 2, r.height / 2);
-      cv::rectangle(f, inner & cv::Rect(0, 0, f.cols, f.rows), targets_[i].color * 0.4,
-                    cv::FILLED);
+      cv::rectangle(f, inner & cv::Rect(0, 0, f.cols, f.rows), targets_[i].color * 0.4, cv::FILLED);
       cv::line(f, r.tl(), r.br(), {255, 255, 255}, 2);
     }
     if (opt_.occluder && t >= opt_.occluder_from &&

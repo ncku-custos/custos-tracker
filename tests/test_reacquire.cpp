@@ -39,8 +39,8 @@ TEST(Reacquire, RelocksMovingTargetAfterOcclusion) {
   opt.occluder_rect = {120, 100, 200, 200};
   opt.occluder_from = 30;
   opt.occluder_to = 70;
-  synth::Sequence seq(opt, {{.box0 = {100, 150, 60, 60}, .vx = 1.5f, .vy = 0.f,
-                             .color = {0, 60, 220}}});
+  synth::Sequence seq(opt,
+                      {{.box0 = {100, 150, 60, 60}, .vx = 1.5f, .vy = 0.f, .color = {0, 60, 220}}});
 
   SotConfig cfg;
   cfg.backend = SotBackend::Mosse;
@@ -77,8 +77,8 @@ TEST(Reacquire, DistractorAloneNeverRelocks) {
   opt.occluder = true;
   opt.occluder_rect = {60, 110, 160, 160};
   opt.occluder_from = 10;  // target never comes back
-  synth::Sequence seq(opt, {{.box0 = {100, 150, 60, 60}, .vx = 0.f, .vy = 0.f,
-                             .color = {0, 60, 220}}});
+  synth::Sequence seq(opt,
+                      {{.box0 = {100, 150, 60, 60}, .vx = 0.f, .vy = 0.f, .color = {0, 60, 220}}});
 
   SotConfig cfg;
   cfg.backend = SotBackend::Mosse;

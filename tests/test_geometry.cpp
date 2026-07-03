@@ -8,11 +8,17 @@
 namespace ctrk {
 namespace {
 
-TEST(Iou, IdenticalBoxes) { EXPECT_FLOAT_EQ(iou({0, 0, 10, 10}, {0, 0, 10, 10}), 1.f); }
+TEST(Iou, IdenticalBoxes) {
+  EXPECT_FLOAT_EQ(iou({0, 0, 10, 10}, {0, 0, 10, 10}), 1.f);
+}
 
-TEST(Iou, DisjointBoxes) { EXPECT_FLOAT_EQ(iou({0, 0, 10, 10}, {20, 20, 10, 10}), 0.f); }
+TEST(Iou, DisjointBoxes) {
+  EXPECT_FLOAT_EQ(iou({0, 0, 10, 10}, {20, 20, 10, 10}), 0.f);
+}
 
-TEST(Iou, TouchingEdgesIsZero) { EXPECT_FLOAT_EQ(iou({0, 0, 10, 10}, {10, 0, 10, 10}), 0.f); }
+TEST(Iou, TouchingEdgesIsZero) {
+  EXPECT_FLOAT_EQ(iou({0, 0, 10, 10}, {10, 0, 10, 10}), 0.f);
+}
 
 TEST(Iou, HalfOverlap) {
   // Boxes [0,10]x[0,10] and [5,15]x[0,10]: inter 50, union 150.

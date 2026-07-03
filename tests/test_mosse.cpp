@@ -20,8 +20,8 @@ TEST(Mosse, FollowsTranslatingTargetWithNoise) {
   synth::Options opt;
   opt.frames = 100;
   opt.noise_sigma = 4.f;
-  synth::Sequence seq(opt, {{.box0 = {100, 150, 60, 60}, .vx = 2.f, .vy = 1.f,
-                             .color = {0, 60, 220}}});
+  synth::Sequence seq(opt,
+                      {{.box0 = {100, 150, 60, 60}, .vx = 2.f, .vy = 1.f, .color = {0, 60, 220}}});
 
   SotTracker tracker(mosse_cfg());
   tracker.init(as_frame_view(seq.frame(0), 0), seq.gt(0)[0]);
@@ -46,8 +46,8 @@ TEST(Mosse, PsrHealthyOnLockCollapsesUnderOcclusion) {
   opt.occluder = true;
   opt.occluder_rect = {60, 110, 160, 160};  // fully covers the target
   opt.occluder_from = 30;
-  synth::Sequence seq(opt, {{.box0 = {100, 150, 60, 60}, .vx = 0.f, .vy = 0.f,
-                             .color = {0, 60, 220}}});
+  synth::Sequence seq(opt,
+                      {{.box0 = {100, 150, 60, 60}, .vx = 0.f, .vy = 0.f, .color = {0, 60, 220}}});
 
   SotTracker tracker(mosse_cfg());
   tracker.init(as_frame_view(seq.frame(0), 0), seq.gt(0)[0]);
@@ -67,8 +67,8 @@ TEST(Mosse, PsrHealthyOnLockCollapsesUnderOcclusion) {
 TEST(Mosse, SurvivesTargetNearImageEdge) {
   synth::Options opt;
   opt.frames = 40;
-  synth::Sequence seq(opt, {{.box0 = {5, 5, 50, 50}, .vx = 1.f, .vy = 1.f,
-                             .color = {200, 40, 40}}});
+  synth::Sequence seq(opt,
+                      {{.box0 = {5, 5, 50, 50}, .vx = 1.f, .vy = 1.f, .color = {200, 40, 40}}});
   SotTracker tracker(mosse_cfg());
   tracker.init(as_frame_view(seq.frame(0), 0), seq.gt(0)[0]);
   for (int t = 1; t < seq.frames(); ++t) {

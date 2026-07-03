@@ -14,10 +14,9 @@ namespace {
 synth::Sequence make_two_target_scene() {
   synth::Options opt;
   opt.frames = 60;
-  return synth::Sequence(opt, {{.box0 = {50, 100, 60, 90}, .vx = 4.f, .vy = 1.f,
-                                .color = {0, 0, 220}},
-                               {.box0 = {400, 300, 80, 60}, .vx = -3.f, .vy = -2.f,
-                                .color = {220, 120, 0}}});
+  return synth::Sequence(
+      opt, {{.box0 = {50, 100, 60, 90}, .vx = 4.f, .vy = 1.f, .color = {0, 0, 220}},
+            {.box0 = {400, 300, 80, 60}, .vx = -3.f, .vy = -2.f, .color = {220, 120, 0}}});
 }
 
 TEST(Synth, GroundTruthMovesLinearly) {
@@ -41,8 +40,8 @@ TEST(Synth, OccluderCoversTarget) {
   opt.occluder = true;
   opt.occluder_rect = {100, 100, 100, 100};
   opt.occluder_from = 10;
-  synth::Sequence seq(opt, {{.box0 = {120, 120, 40, 40}, .vx = 0.f, .vy = 0.f,
-                             .color = {0, 0, 255}}});
+  synth::Sequence seq(opt,
+                      {{.box0 = {120, 120, 40, 40}, .vx = 0.f, .vy = 0.f, .color = {0, 0, 255}}});
   // Sample inside the fill but off the diagonal line and inner block:
   // (row 155, col 125) is plain outer fill. Red before occlusion, grey after.
   const cv::Vec3b before = seq.frame(5).at<cv::Vec3b>(155, 125);

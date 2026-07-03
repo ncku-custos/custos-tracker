@@ -13,13 +13,13 @@ namespace ctrk {
 // stage) — the M1 ablation is this one boolean.
 struct AssocConfig {
   bool use_byte = true;
-  float track_thresh = 0.5f;             // high/low detection score split
-  float match_thresh_high = 0.8f;        // stage 1: max (1 - IoU) cost
-  float match_thresh_low = 0.5f;         // stage 2: min IoU vs low-score dets
-  float tentative_match_thresh = 0.7f;   // stage 3: min IoU for unconfirmed tracks
-  float new_track_thresh = 0.6f;         // min score to spawn a track
-  int n_init = 3;                        // hits to confirm
-  int max_age = 30;                      // frames a lost track coasts
+  float track_thresh = 0.5f;            // high/low detection score split
+  float match_thresh_high = 0.8f;       // stage 1: max (1 - IoU) cost
+  float match_thresh_low = 0.5f;        // stage 2: min IoU vs low-score dets
+  float tentative_match_thresh = 0.7f;  // stage 3: min IoU for unconfirmed tracks
+  float new_track_thresh = 0.6f;        // min score to spawn a track
+  int n_init = 3;                       // hits to confirm
+  int max_age = 30;                     // frames a lost track coasts
 };
 
 struct TbdConfig {

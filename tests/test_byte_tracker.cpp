@@ -121,7 +121,7 @@ TEST(SortLifecycle, LowScoreDetectionsNeverSpawnTracks) {
 // --- ByteTrack-specific behaviour (use_byte = true) ---
 
 TEST(ByteTrack, LowScoreFlickerKeepsTrackUpdated) {
-  AssocConfig byte_cfg;                    // use_byte = true
+  AssocConfig byte_cfg;  // use_byte = true
   AssocConfig sort_cfg = byte_cfg;
   sort_cfg.use_byte = false;
   ByteTracker byte_tracker(byte_cfg);

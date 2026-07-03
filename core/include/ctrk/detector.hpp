@@ -17,10 +17,10 @@ class IDetector {
 };
 
 struct Yolov8Config {
-  std::string model_path;        // models/cache/yolov8n_640.onnx
-  float conf_thr = 0.1f;         // deliberately low: ByteTrack consumes low-score dets
+  std::string model_path;  // models/cache/yolov8n_640.onnx
+  float conf_thr = 0.1f;   // deliberately low: ByteTrack consumes low-score dets
   float nms_iou = 0.45f;
-  std::vector<int> keep_classes; // COCO ids; empty keeps all (0 = person)
+  std::vector<int> keep_classes;  // COCO ids; empty keeps all (0 = person)
   int intra_op_threads = 4;
 };
 

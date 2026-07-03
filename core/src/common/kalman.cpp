@@ -19,9 +19,9 @@ void KalmanBox::initiate(const BBox& z) {
   for (int i = 0; i < 4; ++i) mean_(i) = m(i);
 
   const float h = m(3);
-  const float std[8] = {2 * kStdWeightPos * h, 2 * kStdWeightPos * h,  1e-2f,
-                        2 * kStdWeightPos * h, 10 * kStdWeightVel * h, 10 * kStdWeightVel * h,
-                        1e-5f,                 10 * kStdWeightVel * h};
+  const float std[8] = {
+      2 * kStdWeightPos * h,  2 * kStdWeightPos * h,  1e-2f, 2 * kStdWeightPos * h,
+      10 * kStdWeightVel * h, 10 * kStdWeightVel * h, 1e-5f, 10 * kStdWeightVel * h};
   cov_ = cv::Matx<float, 8, 8>::zeros();
   for (int i = 0; i < 8; ++i) cov_(i, i) = std[i] * std[i];
 

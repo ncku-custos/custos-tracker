@@ -50,9 +50,9 @@ class OrtEngine final : public IEngine {
       if (!match) throw std::runtime_error("missing input tensor: " + desc.name);
       if (match->shape != desc.shape)
         throw std::runtime_error("shape mismatch for input: " + desc.name);
-      ort_inputs.push_back(Ort::Value::CreateTensor<float>(
-          mem, const_cast<float*>(match->data), static_cast<size_t>(desc.elements()),
-          desc.shape.data(), desc.shape.size()));
+      ort_inputs.push_back(Ort::Value::CreateTensor<float>(mem, const_cast<float*>(match->data),
+                                                           static_cast<size_t>(desc.elements()),
+                                                           desc.shape.data(), desc.shape.size()));
       in_names.push_back(desc.name.c_str());
     }
 
@@ -65,8 +65,8 @@ class OrtEngine final : public IEngine {
     std::vector<TensorView> views;
     for (size_t i = 0; i < last_outputs_.size(); ++i) {
       const auto info = last_outputs_[i].GetTensorTypeAndShapeInfo();
-      views.push_back(TensorView{output_names_[i], info.GetShape(),
-                                 last_outputs_[i].GetTensorData<float>()});
+      views.push_back(
+          TensorView{output_names_[i], info.GetShape(), last_outputs_[i].GetTensorData<float>()});
     }
     return views;
   }
@@ -77,8 +77,9 @@ class OrtEngine final : public IEngine {
     d.name = name;
     d.shape = info.GetTensorTypeAndShapeInfo().GetShape();
     for (auto& dim : d.shape) {
-      if (dim < 0) throw std::runtime_error("dynamic shape on tensor '" + d.name +
-                                            "' — ctrk requires static graphs (re-export)");
+      if (dim < 0)
+        throw std::runtime_error("dynamic shape on tensor '" + d.name +
+                                 "' — ctrk requires static graphs (re-export)");
     }
     return d;
   }

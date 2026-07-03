@@ -63,10 +63,9 @@ TEST(Kalman, DegenerateBoxesDoNotProduceNan) {
     kf.update({10, 10, 0.001f, 0.0001f});
   }
   const BBox b = kf.box();
-  EXPECT_TRUE(std::isfinite(b.x) && std::isfinite(b.y) && std::isfinite(b.w) &&
-              std::isfinite(b.h));
-  EXPECT_GE(b.h, 1.f);                 // height clamp
-  EXPECT_GE(b.w / b.h, 0.05f - 1e-4f); // aspect clamp
+  EXPECT_TRUE(std::isfinite(b.x) && std::isfinite(b.y) && std::isfinite(b.w) && std::isfinite(b.h));
+  EXPECT_GE(b.h, 1.f);                  // height clamp
+  EXPECT_GE(b.w / b.h, 0.05f - 1e-4f);  // aspect clamp
   EXPECT_LE(b.w / b.h, 20.f + 1e-4f);
 }
 
