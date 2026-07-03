@@ -24,6 +24,19 @@ struct AssocConfig {
   // so confident detections correct the filter harder. Default on — improved
   // or tied MOTA/IDF1 on every measured config; false = classic filter.
   bool nsa = true;
+  // Tentative churn at detect-interval N (RESULTS.md S2.3/S3.2): a newborn
+  // track has no learned velocity, so its prediction stays put while the
+  // target moves N frames per detect — the stage-3 gate then kills it and it
+  // respawns with a fresh id forever (never confirms). Three remedies; all
+  // are inert when no frames were coasted, so N=1 stays bit-identical.
+  // Defaults per the S3.2 matrix: relax 0.3 + patience 1 improved MOTA/IDF1
+  // at every measured interval on both eval sequences (MOT16-13 N=2 MOTA
+  // 9.3 -> 14.7); velocity seeding HURT on real detections (noisy first
+  // deltas fling the prediction, MOTP +0.03, FP +70%) and stays off.
+  float tentative_relax_per_coast = 0.3f;  // subtracted from the stage-3 gate per coasted frame
+  float tentative_gate_floor = 0.2f;       // stage-3 gate never relaxes below this IoU
+  int tentative_patience = 1;              // extra detect-frame misses a tentative survives
+  bool velocity_seed = false;              // seed newborn KF velocity at its first re-match
 };
 
 struct TbdConfig {

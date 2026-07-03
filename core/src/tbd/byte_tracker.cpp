@@ -49,6 +49,9 @@ std::vector<int> remove_matched(const std::vector<int>& pool,
 }  // namespace
 
 void ByteTracker::mark_matched(STrack& track, const Detection& det) {
+  // A newborn's first re-match carries its true displacement: seed the KF
+  // velocity from it instead of blending from the zero-velocity prior.
+  if (cfg_.velocity_seed && track.hits == 1) track.kf.seed_velocity(det.box, eff_dt_);
   track.kf.update(det.box, cfg_.nsa ? 1.f - det.score : 1.f);
   track.time_since_update = 0;
   track.hits++;
@@ -60,6 +63,7 @@ void ByteTracker::mark_matched(STrack& track, const Detection& det) {
 }
 
 std::vector<Track> ByteTracker::coast(float dt) {
+  coasted_dt_ += dt;
   std::vector<Track> out;
   out.reserve(tracks_.size());
   for (auto& t : tracks_) {
@@ -71,6 +75,10 @@ std::vector<Track> ByteTracker::coast(float dt) {
 }
 
 std::vector<Track> ByteTracker::update(const std::vector<Detection>& detections, float dt) {
+  const float coasted = coasted_dt_;
+  coasted_dt_ = 0.f;
+  eff_dt_ = coasted + dt;
+
   // Predict every live track forward.
   std::vector<BBox> predicted(tracks_.size());
   for (size_t i = 0; i < tracks_.size(); ++i) {
@@ -111,9 +119,14 @@ std::vector<Track> ByteTracker::update(const std::vector<Detection>& detections,
     unmatched_mature = remove_matched(unmatched_mature, low_matches, /*first=*/true);
   }
 
-  // Stage 3: remaining high-score dets vs tentative tracks.
-  const auto tentative_matches = match_by_iou(predicted, tentative_tracks, detections,
-                                              unmatched_high, cfg_.tentative_match_thresh);
+  // Stage 3: remaining high-score dets vs tentative tracks. The gate relaxes
+  // with coasted frames (a newborn's prediction lags by the full interval);
+  // zero coasting -> the configured gate, bit-identical N=1 behavior.
+  const float tent_gate =
+      std::max(cfg_.tentative_gate_floor,
+               cfg_.tentative_match_thresh - cfg_.tentative_relax_per_coast * coasted);
+  const auto tentative_matches =
+      match_by_iou(predicted, tentative_tracks, detections, unmatched_high, tent_gate);
   matches.insert(matches.end(), tentative_matches.begin(), tentative_matches.end());
   const auto unmatched_tentative =
       remove_matched(tentative_tracks, tentative_matches, /*first=*/true);
@@ -121,9 +134,11 @@ std::vector<Track> ByteTracker::update(const std::vector<Detection>& detections,
 
   for (const auto& [ti, dj] : matches) mark_matched(tracks_[ti], detections[dj]);
 
-  // Lifecycle for unmatched tracks.
+  // Lifecycle for unmatched tracks. Unconfirmed misses drop after
+  // tentative_patience extra detect-frames (0 = immediately, the default).
   std::vector<bool> removed(tracks_.size(), false);
-  for (int idx : unmatched_tentative) removed[idx] = true;  // unconfirmed miss: drop
+  for (int idx : unmatched_tentative)
+    if (tracks_[idx].time_since_update > cfg_.tentative_patience) removed[idx] = true;
   for (int idx : unmatched_mature) {
     auto& t = tracks_[idx];
     if (t.state == TrackState::Confirmed) t.state = TrackState::Lost;

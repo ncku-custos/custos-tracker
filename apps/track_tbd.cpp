@@ -24,6 +24,9 @@ const char* kUsage =
     "{conf     | 0.1   | detector confidence floor}"
     "{detect-every | 1 | run the detector every Nth frame (KF coasting between)}"
     "{no-nsa   |       | classic Kalman R (disable NSA det-score scaling, S3.1)}"
+    "{tentative-relax | 0.3 | relax the stage-3 IoU gate per coasted frame (S3.2)}"
+    "{tentative-patience | 1 | detect-frame misses a tentative track survives (S3.2)}"
+    "{velocity-seed |   | seed newborn KF velocity from its first re-match (S3.2)}"
     "{threads  | 4     | detector intra-op threads}"
     "{no-spin  |       | stop the ORT pool busy-waiting between runs (lower idle CPU)}"
     "{dnnl     |       | experimental oneDNN execution provider}"
@@ -73,6 +76,9 @@ int main(int argc, char** argv) {
   cfg.detector.engine.use_dnnl = cli.has("dnnl");
   cfg.assoc.use_byte = cli.get<std::string>("mode") != "sort";
   cfg.assoc.nsa = !cli.has("no-nsa");
+  cfg.assoc.tentative_relax_per_coast = cli.get<float>("tentative-relax");
+  cfg.assoc.tentative_patience = cli.get<int>("tentative-patience");
+  cfg.assoc.velocity_seed = cli.has("velocity-seed");
   cfg.detect_interval = cli.get<int>("detect-every");
   cfg.nominal_fps = src->fps();
   std::optional<ctrk::MultiTracker> tracker;

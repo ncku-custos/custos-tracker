@@ -98,6 +98,59 @@ TEST(Coast, IdsStableThroughCrossingAtIntervalTwo) {
   EXPECT_EQ(final_out.size(), 2u);
 }
 
+// RESULTS.md S2.3/S3.2: at detect-interval N a newborn track has no learned
+// velocity, its prediction stays put, and the 0.7 stage-3 gate kills it —
+// the target churns fresh ids forever and NEVER confirms (permanent FN).
+// 8 px/frame on a 40-wide box = 16 px per detect interval, IoU 0.43 < 0.7.
+TEST(TentativeChurn, FastMoverAtIntervalTwoNeverConfirmsWithoutTheS32Knobs) {
+  AssocConfig cfg;
+  cfg.tentative_relax_per_coast = 0.f;  // the pre-S3.2 behavior
+  cfg.tentative_patience = 0;
+  ByteTracker tracker(cfg);
+  bool confirmed = false;
+  for (int f = 0; f < 20; ++f) {
+    const float x = 100.f + 8.f * static_cast<float>(f);
+    if (f % 2 == 0) {
+      for (const auto& t : tracker.update({det(x, 100, 40, 80, 0.9f)}))
+        confirmed |= t.state == TrackState::Confirmed;
+    } else {
+      tracker.coast();
+    }
+  }
+  EXPECT_FALSE(confirmed);  // documents the pathology the S3.2 knobs remove
+}
+
+TEST(TentativeChurn, RelaxPlusVelocitySeedConfirmsAndHoldsOneId) {
+  AssocConfig cfg;
+  cfg.tentative_relax_per_coast = 0.3f;  // one coasted frame: gate 0.7 -> 0.4
+  cfg.velocity_seed = true;
+  ByteTracker tracker(cfg);
+  std::vector<int> confirmed_ids;
+  for (int f = 0; f < 20; ++f) {
+    const float x = 100.f + 8.f * static_cast<float>(f);
+    if (f % 2 == 0) {
+      for (const auto& t : tracker.update({det(x, 100, 40, 80, 0.9f)}))
+        if (t.state == TrackState::Confirmed) confirmed_ids.push_back(t.id);
+    } else {
+      tracker.coast();
+    }
+  }
+  ASSERT_FALSE(confirmed_ids.empty());
+  for (int id : confirmed_ids) EXPECT_EQ(id, confirmed_ids.front());
+}
+
+TEST(TentativeChurn, PatienceSurvivesADetectionDropout) {
+  AssocConfig cfg;
+  cfg.tentative_patience = 1;
+  ByteTracker tracker(cfg);
+  // Slow target so the gate is not the limiter; one missed detect frame.
+  tracker.update({det(100, 100, 40, 80, 0.9f)});
+  tracker.update({});  // dropout: with patience the tentative track survives
+  const auto out = tracker.update({det(104, 100, 40, 80, 0.9f)});
+  ASSERT_EQ(out.size(), 1u);
+  EXPECT_EQ(out[0].hits, 2);  // same track re-matched, not a respawn
+}
+
 TEST(SortLifecycle, ConfirmsAfterNInitHits) {
   AssocConfig cfg;
   cfg.use_byte = false;
@@ -116,9 +169,10 @@ TEST(SortLifecycle, ConfirmsAfterNInitHits) {
   EXPECT_EQ(out3[0].hits, 3);
 }
 
-TEST(SortLifecycle, TentativeMissIsDroppedImmediately) {
+TEST(SortLifecycle, TentativeMissIsDroppedImmediatelyWithoutPatience) {
   AssocConfig cfg;
   cfg.use_byte = false;
+  cfg.tentative_patience = 0;  // classic single-miss drop (default is 1, S3.2)
   ByteTracker tracker(cfg);
   tracker.update({det(100, 100, 40, 80, 0.9f)});
   const auto out = tracker.update({});  // one miss while tentative

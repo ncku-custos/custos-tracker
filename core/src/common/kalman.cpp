@@ -68,6 +68,13 @@ void KalmanBox::update(const BBox& z, float r_scale) {
   clamp_state();
 }
 
+void KalmanBox::seed_velocity(const BBox& z, float dt) {
+  CV_Assert(init_);
+  if (dt <= 0.f) return;
+  const auto m = to_measurement(z);
+  for (int i = 0; i < 4; ++i) mean_(i + 4) = (m(i) - mean_(i)) / dt;
+}
+
 void KalmanBox::clamp_state() {
   mean_(2) = std::clamp(mean_(2), 0.05f, 20.f);  // aspect
   mean_(3) = std::max(mean_(3), 1.f);            // height

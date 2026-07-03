@@ -382,3 +382,46 @@ runs). Gates: 69 tests green (oracle running), mini-OTB 0.631 exact (SOT
 untouched). **MOT16-04 default-config anchors move to MOTA 31.3 / IDSW 23 /
 IDF1 43.9** — quality-work anchor updates are recorded here; the ±0.2 MOTA /
 ±2 IDSW tolerances now apply to these values.
+
+## S3.2 — tentative-gate churn fix: relax + patience kept, velocity seeding rejected (2026-07-03)
+
+The S2.3 pathology, now reproduced in a unit test
+(`TentativeChurn.FastMoverAtIntervalTwoNeverConfirmsWithoutTheS32Knobs`): at
+detect-interval N a newborn track has no learned velocity, its prediction
+stays put while the target moves N frames, the 0.7 stage-3 gate kills it on
+the first miss, and the target churns fresh tentative ids forever — it
+NEVER confirms, i.e. a permanent FN, worst exactly where coasting is most
+needed. Three independent knobs measured (all default-inert at the time of
+measurement; deterministic evals, post-NSA baselines):
+
+| MOTA / IDF1 | 04 N=2 | 04 N=3 | 04 N=5 | 13 N=2 | 13 N=3 | 13 N=5 |
+|---|---|---|---|---|---|---|
+| baseline (S3.1) | 29.7/44.7 | 28.9/42.2 | 25.6/38.8 | 9.3/16.0 | 6.6/12.1 | 1.6/3.5 |
+| relax=0.15 | 29.8/44.8 | 28.9/42.3 | 26.3/39.4 | 11.3/18.5 | 10.4/18.2 | 7.7/14.2 |
+| relax=0.3 | 29.8/44.8 | 28.9/42.3 | 26.3/39.4 | 14.7/23.5 | 12.8/21.9 | 7.7/14.2 |
+| patience=1 | 29.8/44.8 | 29.1/42.5 | 25.9/39.2 | 9.3/16.0 | 6.6/12.1 | 1.6/3.5 |
+| velocity seed | 26.2/40.2 | 25.8/38.4 | 24.6/38.2 | 6.8/14.2 | 6.1/11.7 | 1.5/3.3 |
+| relax=0.3+seed | 26.7/40.8 | 25.0/38.4 | 20.3/34.7 | 13.5/23.6 | 10.0/18.9 | 6.1/13.1 |
+| **relax=0.3+patience=1** | **29.9/44.9** | **29.2/42.6** | **26.8/40.0** | **14.7/23.5** | **13.2/22.5** | **7.7/14.2** |
+
+- **Kept, default ON: `tentative_relax_per_coast=0.3` (floor 0.2) +
+  `tentative_patience=1`.** Best or tied on every MOTA/IDF1 cell; the
+  moving-camera sequence is transformed (N=2 MOTA +5.4, N=5 rescued from
+  collapse 1.6 -> 7.7). IDSW rises a few counts at deep intervals (04 N=5:
+  13 -> 18) because targets that previously never confirmed now exist to be
+  switched — IDF1 (up everywhere) is the honest identity read.
+- **Negative result, kept OFF: velocity seeding.** Seeding the newborn KF
+  velocity from its first re-match delta wins on noiseless synthetic motion
+  (unit test) but LOSES on real detections: one noisy displacement sampled
+  at interval N flings the prediction (MOTP 0.176 -> 0.20+, FP +70%, MOTA
+  −3 to −5 on 04). The Kalman blend from the zero-velocity prior is the
+  better velocity estimator once the relaxed gate keeps the track alive
+  long enough to learn.
+- relax15 ≡ relax30 digit-identical on 04 (candidate IoUs there cluster
+  outside the 0.4-0.55 band) but relax30 clearly better on 13 where
+  apparent motion is larger; 0.3 with the 0.2 floor adopted.
+- **N=1 caveat (gates)**: the relax knob is provably inert at N=1
+  (coasted=0), but patience=1 also lets a newborn survive one detector
+  flicker at N=1 — measured: MOT16-04 N=1 anchors digit-identical (31.3 /
+  23 / 43.9, FN one box lower); MOT16-13 N=1 +0.1 MOTA/IDF1. Within gates;
+  anchors unchanged.

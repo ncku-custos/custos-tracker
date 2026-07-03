@@ -44,6 +44,8 @@ class ByteTracker {
   AssocConfig cfg_;
   std::vector<STrack> tracks_;
   int next_id_ = 1;
+  float coasted_dt_ = 0.f;  // frame units coasted since the last update()
+  float eff_dt_ = 1.f;      // coasted + current dt at the live update()
 };
 
 }  // namespace ctrk

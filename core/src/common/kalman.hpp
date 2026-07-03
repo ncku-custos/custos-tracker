@@ -19,6 +19,12 @@ class KalmanBox {
   // detections correct harder. Clamped to a small floor so conf=1 cannot
   // make R singular.
   void update(const BBox& z, float r_scale = 1.f);
+  // Overwrite the velocity state from the measurement delta over dt frame
+  // units. Call BEFORE update(): the current mean must still be the prior
+  // (for a newborn track, its birth position). Seeds a track's velocity from
+  // its first two detections instead of blending from the zero-velocity
+  // prior — the detect-interval churn remedy (RESULTS.md S3.2).
+  void seed_velocity(const BBox& z, float dt);
 
   bool initialized() const { return init_; }
   BBox box() const;
