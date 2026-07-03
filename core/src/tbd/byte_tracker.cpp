@@ -49,7 +49,7 @@ std::vector<int> remove_matched(const std::vector<int>& pool,
 }  // namespace
 
 void ByteTracker::mark_matched(STrack& track, const Detection& det) {
-  track.kf.update(det.box);
+  track.kf.update(det.box, cfg_.nsa ? 1.f - det.score : 1.f);
   track.time_since_update = 0;
   track.hits++;
   track.score = det.score;

@@ -20,6 +20,10 @@ struct AssocConfig {
   float new_track_thresh = 0.6f;        // min score to spawn a track
   int n_init = 3;                       // hits to confirm
   int max_age = 30;                     // frames a lost track coasts
+  // NSA-Kalman (RESULTS.md S3.1): scale measurement noise by (1 - det score)
+  // so confident detections correct the filter harder. Default on — improved
+  // or tied MOTA/IDF1 on every measured config; false = classic filter.
+  bool nsa = true;
 };
 
 struct TbdConfig {

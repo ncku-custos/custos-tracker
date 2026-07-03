@@ -29,3 +29,6 @@ __pycache__/
 .vscode/
 .idea/
 *.swp
+runs/
+yolov8n.onnx
+yolo26n.pt

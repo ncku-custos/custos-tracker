@@ -359,3 +359,26 @@ IDSW-free at this detection density, so GMC/appearance work (S3.4/S3.5)
 will be read primarily through MOTA/FN/IDF1 deltas here, not IDSW. Unlike
 MOT16-04, N=2 clearly hurts on this sequence — camera motion breaks the
 constant-velocity coast — which is itself the GMC hypothesis in miniature.
+
+## S3.1 — NSA-Kalman: kept, default ON (2026-07-03)
+
+Hypothesis: scaling measurement noise R by (1 − det score) (NSA form,
+GIAOTracker/BoT-SORT lineage) lets confident detections correct the filter
+harder -> tighter boxes, fewer FP/FN at match time. One-line filter change
+(`KalmanBox::update(z, r_scale)`), wired as `AssocConfig::nsa`, single call
+site in `mark_matched`. Deterministic evals — deltas are exact, not noise:
+
+| config | MOTA | FP | FN | IDSW | IDF1 |
+|---|---|---|---|---|---|
+| MOT16-04 N=1 | 31.0 -> **31.3** | 1132 -> 1069 | 31665 -> 31593 | 23 | 43.7 -> **43.9** |
+| MOT16-04 N=2 | 29.2 -> **29.7** | 1123 -> 1008 | 32510 -> 32391 | 18 | 44.4 -> **44.7** |
+| MOT16-13 N=1 | 13.2 -> **13.7** | 78 -> 75 | 9856 -> 9800 | 6 -> **5** | 21.3 -> **22.3** |
+| MOT16-13 N=2 | 9.3 (flat) | 24 -> 25 | 10356 -> 10355 | 2 | 16.0 (flat) |
+
+Improves or ties every measured config; nothing regresses. **Default flipped
+to ON** (`--no-nsa` restores the classic filter and is byte-identical to the
+pre-change default; the new default is byte-identical to the measured `--nsa`
+runs). Gates: 69 tests green (oracle running), mini-OTB 0.631 exact (SOT
+untouched). **MOT16-04 default-config anchors move to MOTA 31.3 / IDSW 23 /
+IDF1 43.9** — quality-work anchor updates are recorded here; the ±0.2 MOTA /
+±2 IDSW tolerances now apply to these values.

@@ -14,7 +14,11 @@ class KalmanBox {
  public:
   void initiate(const BBox& z);
   void predict(float dt = 1.f);
-  void update(const BBox& z);
+  // r_scale multiplies the measurement-noise variance R. 1 = classic filter;
+  // NSA-Kalman (GIAOTracker) passes (1 - detection score) so confident
+  // detections correct harder. Clamped to a small floor so conf=1 cannot
+  // make R singular.
+  void update(const BBox& z, float r_scale = 1.f);
 
   bool initialized() const { return init_; }
   BBox box() const;

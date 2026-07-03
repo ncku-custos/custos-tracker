@@ -45,7 +45,7 @@ void KalmanBox::predict(float dt) {
   clamp_state();
 }
 
-void KalmanBox::update(const BBox& z) {
+void KalmanBox::update(const BBox& z, float r_scale) {
   CV_Assert(init_);
   const auto m = to_measurement(z);
 
@@ -54,9 +54,10 @@ void KalmanBox::update(const BBox& z) {
   for (int i = 0; i < 4; ++i) H(i, i) = 1.f;
 
   const float h = mean_(3);
+  const float scale = std::max(r_scale, 1e-4f);
   const float std[4] = {kStdWeightPos * h, kStdWeightPos * h, 1e-1f, kStdWeightPos * h};
   auto R = cv::Matx<float, 4, 4>::zeros();
-  for (int i = 0; i < 4; ++i) R(i, i) = std[i] * std[i];
+  for (int i = 0; i < 4; ++i) R(i, i) = std[i] * std[i] * scale;
 
   const cv::Matx<float, 4, 4> S = H * cov_ * H.t() + R;
   const cv::Matx<float, 8, 4> K = cov_ * H.t() * S.inv(cv::DECOMP_CHOLESKY);

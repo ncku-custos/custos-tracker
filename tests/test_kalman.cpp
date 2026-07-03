@@ -20,6 +20,35 @@ TEST(Kalman, InitiateReproducesMeasurement) {
   EXPECT_NEAR(b.h, z.h, 1e-3f);
 }
 
+TEST(Kalman, NsaScaleTightensAndDefaultIsUnchanged) {
+  // Two identical filters, one update with an offset measurement: a small
+  // r_scale (confident detection) must land the posterior closer to the
+  // measurement than the classic r_scale=1 update.
+  auto make = [] {
+    KalmanBox kf;
+    kf.initiate({100, 100, 50, 100});
+    kf.predict();
+    return kf;
+  };
+  const BBox z{110, 100, 50, 100};
+
+  KalmanBox classic = make(), confident = make(), defaulted = make();
+  classic.update(z, 1.f);
+  confident.update(z, 0.1f);  // NSA with det score 0.9
+  defaulted.update(z);        // default arg must equal r_scale=1 exactly
+
+  const float d_classic = std::abs(classic.box().cx() - z.cx());
+  const float d_confident = std::abs(confident.box().cx() - z.cx());
+  EXPECT_LT(d_confident, d_classic);
+  EXPECT_EQ(defaulted.box().cx(), classic.box().cx());
+  EXPECT_EQ(defaulted.box().cy(), classic.box().cy());
+
+  // Degenerate scale must not blow up the inversion.
+  KalmanBox extreme = make();
+  extreme.update(z, 0.f);
+  EXPECT_TRUE(std::isfinite(extreme.box().cx()));
+}
+
 TEST(Kalman, ConvergesOnNoisyConstantVelocityTrack) {
   std::mt19937 rng(7);
   std::normal_distribution<float> noise(0.f, 1.5f);

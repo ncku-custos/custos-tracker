@@ -23,6 +23,7 @@ const char* kUsage =
     "{classes  |       | comma-separated COCO class ids to keep (empty = all, 0 = person)}"
     "{conf     | 0.1   | detector confidence floor}"
     "{detect-every | 1 | run the detector every Nth frame (KF coasting between)}"
+    "{no-nsa   |       | classic Kalman R (disable NSA det-score scaling, S3.1)}"
     "{threads  | 4     | detector intra-op threads}"
     "{no-spin  |       | stop the ORT pool busy-waiting between runs (lower idle CPU)}"
     "{dnnl     |       | experimental oneDNN execution provider}"
@@ -71,6 +72,7 @@ int main(int argc, char** argv) {
   cfg.detector.engine.allow_spinning = !cli.has("no-spin");
   cfg.detector.engine.use_dnnl = cli.has("dnnl");
   cfg.assoc.use_byte = cli.get<std::string>("mode") != "sort";
+  cfg.assoc.nsa = !cli.has("no-nsa");
   cfg.detect_interval = cli.get<int>("detect-every");
   cfg.nominal_fps = src->fps();
   std::optional<ctrk::MultiTracker> tracker;
