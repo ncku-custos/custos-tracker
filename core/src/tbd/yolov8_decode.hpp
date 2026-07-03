@@ -1,11 +1,19 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include "common/geometry.hpp"
 #include "ctrk/types.hpp"
 
 namespace ctrk {
+
+// Reusable per-anchor scratch for decode_yolov8; hold one per detector to
+// avoid re-allocating two anchor-wide arrays every frame.
+struct DecodeScratch {
+  std::vector<float> best;
+  std::vector<int16_t> best_cls;
+};
 
 // Decode a raw YOLOv8 head output (layout [1, 4+num_classes, num_anchors],
 // channel-major: value(c, a) = out[c * num_anchors + a]; rows 0-3 are
@@ -14,6 +22,7 @@ namespace ctrk {
 // from the engine so the golden-tensor test covers it without inference.
 std::vector<Detection> decode_yolov8(const float* out, int num_classes, int num_anchors,
                                      float conf_thr, float nms_iou, const LetterboxMap& map,
-                                     const std::vector<int>& keep_classes);
+                                     const std::vector<int>& keep_classes,
+                                     DecodeScratch* scratch = nullptr);
 
 }  // namespace ctrk

@@ -14,24 +14,38 @@ namespace ctrk {
 
 std::vector<Detection> decode_yolov8(const float* out, int num_classes, int num_anchors,
                                      float conf_thr, float nms_iou, const LetterboxMap& map,
-                                     const std::vector<int>& keep_classes) {
+                                     const std::vector<int>& keep_classes,
+                                     DecodeScratch* scratch) {
   const auto value = [&](int c, int a) { return out[c * num_anchors + a]; };
   const auto wanted = [&](int cls) {
     return keep_classes.empty() ||
            std::find(keep_classes.begin(), keep_classes.end(), cls) != keep_classes.end();
   };
 
-  std::vector<Detection> candidates;
-  for (int a = 0; a < num_anchors; ++a) {
-    int best_cls = -1;
-    float best = conf_thr;
-    for (int c = 0; c < num_classes; ++c) {
-      const float s = value(4 + c, a);
-      if (s >= best) {
-        best = s;
-        best_cls = c;
+  // Per-anchor class max, scanned per CLASS so every pass is a contiguous
+  // row of the [4+C, A] tensor instead of an A-strided walk. Ascending class
+  // with >= keeps the original tie-break (highest class id wins) and produces
+  // bit-identical results to the former per-anchor inner loop.
+  DecodeScratch local;
+  DecodeScratch& s = scratch ? *scratch : local;
+  s.best.assign(static_cast<size_t>(num_anchors), conf_thr);
+  s.best_cls.assign(static_cast<size_t>(num_anchors), -1);
+  for (int c = 0; c < num_classes; ++c) {
+    const float* row = out + static_cast<size_t>(4 + c) * num_anchors;
+    float* best = s.best.data();
+    int16_t* best_cls = s.best_cls.data();
+    for (int a = 0; a < num_anchors; ++a) {
+      if (row[a] >= best[a]) {
+        best[a] = row[a];
+        best_cls[a] = static_cast<int16_t>(c);
       }
     }
+  }
+
+  std::vector<Detection> candidates;
+  for (int a = 0; a < num_anchors; ++a) {
+    const int best_cls = s.best_cls[a];
+    const float best = s.best[a];
     if (best_cls < 0 || !wanted(best_cls)) continue;
 
     const float cx = value(0, a), cy = value(1, a);
@@ -79,6 +93,8 @@ class Yolov8Detector final : public IDetector {
     num_classes_ = static_cast<int>(out[0].shape[1]) - 4;
     num_anchors_ = static_cast<int>(out[0].shape[2]);
     blob_.resize(static_cast<size_t>(in[0].elements()));
+    canvas_.create(input_size_, input_size_, CV_8UC3);
+    for (auto& ch : chan_) ch.create(input_size_, input_size_, CV_8U);
   }
 
   std::vector<Detection> detect(const FrameView& frame) override {
@@ -87,22 +103,27 @@ class Yolov8Detector final : public IDetector {
 
     {
       ProfileScope prof("det.preprocess");
-      // Letterbox onto a 114-grey canvas, then RGB float CHW in [0,1].
-      cv::Mat canvas(input_size_, input_size_, CV_8UC3, cv::Scalar(114, 114, 114));
+      // Letterbox onto a cached 114-grey canvas, then RGB float CHW in [0,1].
+      // The grey bands only need refreshing when the scaled size changes;
+      // the resize overwrites the interior rect every frame.
       const int nw = static_cast<int>(std::round(img.cols * map.scale));
       const int nh = static_cast<int>(std::round(img.rows * map.scale));
       const int px = (input_size_ - nw) / 2, py = (input_size_ - nh) / 2;
-      cv::resize(img, canvas(cv::Rect(px, py, nw, nh)), cv::Size(nw, nh));
+      if (nw != fitted_w_ || nh != fitted_h_) {
+        canvas_.setTo(cv::Scalar(114, 114, 114));
+        fitted_w_ = nw;
+        fitted_h_ = nh;
+      }
+      cv::resize(img, canvas_(cv::Rect(px, py, nw, nh)), cv::Size(nw, nh));
 
+      // Deinterleave with cv::split (runtime-SIMD dispatched), then scale each
+      // contiguous plane; same values as the former per-pixel loop.
+      cv::split(canvas_, chan_);
       const int plane = input_size_ * input_size_;
-      for (int y = 0; y < input_size_; ++y) {
-        const cv::Vec3b* row = canvas.ptr<cv::Vec3b>(y);
-        for (int x = 0; x < input_size_; ++x) {
-          const int i = y * input_size_ + x;
-          blob_[0 * plane + i] = row[x][2] / 255.f;  // R (canvas is BGR)
-          blob_[1 * plane + i] = row[x][1] / 255.f;  // G
-          blob_[2 * plane + i] = row[x][0] / 255.f;  // B
-        }
+      for (int c = 0; c < 3; ++c) {
+        const uchar* src = chan_[2 - c].ptr<uchar>(0);  // BGR planes -> RGB blob
+        float* dst = blob_.data() + static_cast<size_t>(c) * plane;
+        for (int i = 0; i < plane; ++i) dst[i] = src[i] / 255.f;
       }
     }
 
@@ -115,7 +136,7 @@ class Yolov8Detector final : public IDetector {
 
     ProfileScope prof("det.decode");
     return decode_yolov8(out[0].data, num_classes_, num_anchors_, config_.conf_thr, config_.nms_iou,
-                         map, config_.keep_classes);
+                         map, config_.keep_classes, &scratch_);
   }
 
  private:
@@ -123,6 +144,10 @@ class Yolov8Detector final : public IDetector {
   std::unique_ptr<IEngine> engine_;
   int input_size_ = 640, num_classes_ = 80, num_anchors_ = 8400;
   std::vector<float> blob_;
+  cv::Mat canvas_;
+  cv::Mat chan_[3];
+  int fitted_w_ = -1, fitted_h_ = -1;  // letterboxed interior of canvas_
+  DecodeScratch scratch_;
 };
 
 }  // namespace
