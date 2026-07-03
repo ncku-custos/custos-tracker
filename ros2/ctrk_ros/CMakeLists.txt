@@ -79,6 +79,7 @@ install(TARGETS ctrk_ros_components
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
+install(DIRECTORY launch params DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
@@ -95,6 +96,12 @@ if(BUILD_TESTING)
   # The CI anchor: full pub/sub e2e with the model-free MOSSE backend.
   ament_add_gtest(test_lifecycle_sot_mosse test/test_lifecycle_sot_mosse.cpp TIMEOUT 120)
   target_link_libraries(test_lifecycle_sot_mosse ctrk_ros_components)
+  # Full composed graph (player -> sot -> draw), plugin-loaded, IPC on.
+  find_package(class_loader REQUIRED)
+  find_package(ament_index_cpp REQUIRED)
+  ament_add_gtest(test_composition test/test_composition.cpp TIMEOUT 120)
+  target_link_libraries(test_composition ctrk_ros_components class_loader::class_loader
+    ament_index_cpp::ament_index_cpp)
 endif()
 
 ament_package()

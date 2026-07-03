@@ -1,0 +1,48 @@
+# ctrk_sot_node parameter reference. Everything commented out = the built-in
+# default. Node defaults equal the ctrk struct defaults except where marked
+# CLI-DEFAULT (they mirror the CLI's operating defaults instead).
+/**:
+  ros__parameters:
+    # rcl rejects an all-comment mapping; these two ARE the node defaults.
+    image_qos_reliability: best_effort
+    image_qos_depth: 1
+    # backend: nano                   # nano | mosse (NN-free fallback)
+    # backbone_z_path: models/cache/nanotrack_backbone_z.onnx
+    # backbone_x_path: models/cache/nanotrack_backbone_x.onnx
+    # head_path: models/cache/nanotrack_head.onnx
+    #   # v3 exports (vehicle gains, person regressions — S3.7): nanotrackv3_* graphs
+    #   # + penalty_k: 0.138 + size_lr: 0.348
+    # engine.intra_op_threads: 2
+    # engine.allow_spinning: false    # SOT default is no-spin (S2.2)
+    # engine.warmup: true
+    # engine.use_dnnl: false
+    # penalty_k: 0.055
+    # window_influence: 0.455
+    # size_lr: 0.37
+    # context_amount: 0.5
+    # lost_score_thr: -1.0            # -1 = auto (0.30 nano, 8.0 mosse PSR)
+    # lost_patience: 5
+    # template_update_interval: 0     # dual-template: decisively negative (S3.8), leave 0
+    # template_refresh_thr: 0.7
+    # template_blend: 0.5
+    # reid.embedder: hsv              # CLI-DEFAULT (struct default none); re-lock veto, S3.3
+    # reid.accept: -1.0               # -1 = auto (hsv 0.4, nanoz 0.65)
+    # reid.drift_check_every: 0       # 5 + nanoz catches confident drift (Girl2 mode, S3.3)
+    # reid.drift_thr: -1.0            # -1 = auto (hsv 0.4, nanoz 0.55)
+    # --- detector-assisted reacquire (off by default, as in the CLI) ---
+    # reacquire.enable: false
+    # reacquire.detector.model_path: models/cache/yolov8n_640.onnx
+    # reacquire.detector.conf_thr: 0.25   # CLI-DEFAULT (was hardcoded in track_sot)
+    # reacquire.class_id: 0           # CLI-DEFAULT --class (struct default -1 = any)
+    # reacquire.detect_every: 3
+    # reacquire.min_score: 0.4
+    # reacquire.size_low: 0.5
+    # reacquire.size_high: 2.0
+    # reacquire.base_radius_frac: 1.5
+    # reacquire.growth_per_frame: 0.05
+    # --- node-level ---
+    # init_bbox: []                   # [x,y,w,h] arms init on first frame (CLI-exact replay)
+    # dump_path: ""                   # OTB csv incl. init frame
+    # image_qos_reliability: best_effort  # (set above)
+    # image_qos_depth: 1                  # (set above)
+    # bench: false

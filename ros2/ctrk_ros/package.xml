@@ -22,7 +22,12 @@
   <depend>std_srvs</depend>
   <depend>ctrk_interfaces</depend>
 
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
   <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>class_loader</test_depend>
+  <test_depend>ament_index_cpp</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

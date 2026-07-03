@@ -1,0 +1,43 @@
+# ctrk_tbd_node parameter reference. Everything commented out = the built-in
+# default, which equals the ctrk config-struct default (== CLI default).
+# Uncomment to override. Numbers cited from docs/RESULTS.md steps 2-3.
+/**:
+  ros__parameters:
+    # rcl rejects an all-comment mapping; these two ARE the node defaults.
+    image_qos_reliability: best_effort
+    image_qos_depth: 1
+    # --- detector (ctrk::Yolov8Config) ---
+    # detector.model_path: models/cache/yolov8n_640.onnx  # _int8 variant: parity-plus at ~1.4x speed (D-0008)
+    # detector.conf_thr: 0.1          # deliberately low: ByteTrack consumes low-score dets
+    # detector.nms_iou: 0.45
+    # detector.keep_classes: []       # COCO ids; empty keeps all (0 = person)
+    # detector.engine.intra_op_threads: 4  # host-specific optimum; re-sweep per host (D-0011)
+    # detector.engine.allow_spinning: true # false = ~40% less CPU for a few % latency (SoC posture)
+    # detector.engine.warmup: true
+    # detector.engine.use_dnnl: false
+    # --- association (ctrk::AssocConfig) ---
+    # assoc.use_byte: true            # false = plain SORT
+    # assoc.track_thresh: 0.5
+    # assoc.match_thresh_high: 0.8
+    # assoc.match_thresh_low: 0.5
+    # assoc.tentative_match_thresh: 0.7
+    # assoc.new_track_thresh: 0.6
+    # assoc.n_init: 3
+    # assoc.max_age: 30
+    # assoc.nsa: true                 # NSA-Kalman (S3.1)
+    # assoc.tentative_relax_per_coast: 0.3  # churn fix (S3.2)
+    # assoc.tentative_gate_floor: 0.2
+    # assoc.tentative_patience: 1
+    # assoc.velocity_seed: false      # negative on real data (S3.2) — leave off
+    # assoc.appearance_weight: 0.0    # null result on MOT16 (S3.5); seam for a real embedder
+    # assoc.embedding_ema: 0.9
+    # --- pipeline (ctrk::TbdConfig) ---
+    # gmc: off                        # sparse_flow: +5.4 MOTA/+9.7 IDF1 on moving camera (S3.4)
+    # nominal_fps: 30.0
+    # detect_interval: 1              # N=2 improves identity metrics on both eval seqs (S3.2)
+    # --- node-level ---
+    # publish_lost: false             # true also publishes coasting Lost tracks
+    # dump_path: ""                   # MOT csv (CLI --dump format), for eval/parity
+    # image_qos_reliability: best_effort  # flight posture (set above); reliable for evals
+    # image_qos_depth: 1              # 1 = latest frame wins (set above)
+    # bench: false                    # per-stage + e2e latency table on deactivate

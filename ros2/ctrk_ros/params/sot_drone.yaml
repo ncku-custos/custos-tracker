@@ -1,0 +1,14 @@
+# Drone operating point for the SOT tracker (step-3 rollup S3.10): detector-
+# assisted re-acquisition with the HSV re-lock veto (the node's reid default)
+# rescues occlusion losses without wrong-relock regressions (S3.3). Add
+# reid.embedder: nanoz + reid.drift_check_every: 5 to also catch confident
+# drift (the Girl2 mode) at ~one extra backbone pass per 5 frames.
+#
+# NOT set here per D-0011: engine.intra_op_threads / allow_spinning (re-sweep
+# on the SoC).
+/**:
+  ros__parameters:
+    reacquire.enable: true
+    reacquire.class_id: 0  # person; set to the mission's target class
+    image_qos_reliability: best_effort
+    image_qos_depth: 1

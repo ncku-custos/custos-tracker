@@ -1,0 +1,14 @@
+# Drone operating point for the TBD tracker (docs/DECISIONS.md D-0013 + the
+# step-3 rollup S3.10): the camera always moves in flight, so GMC is on here
+# even though the host/struct default stays off; detect_interval 2 improves
+# identity metrics and nearly halves effective compute (S3.2).
+#
+# Deliberately NOT set here, per D-0011 (tuning does not transfer between
+# hosts — measure on the SoC): detector.engine.intra_op_threads,
+# detector.engine.allow_spinning, and the INT8 detector.model_path variant.
+/**:
+  ros__parameters:
+    gmc: sparse_flow
+    detect_interval: 2
+    image_qos_reliability: best_effort
+    image_qos_depth: 1
