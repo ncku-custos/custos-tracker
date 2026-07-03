@@ -1,0 +1,10 @@
+# (Re-)initialize the SOT tracker on a target box: top-left origin, pixel
+# units in the subscribed image. Rejected (accepted=false) if w or h is not
+# positive or the node is not in the ACTIVE lifecycle state.
+float32 x
+float32 y
+float32 w
+float32 h
+---
+bool accepted
+string message
