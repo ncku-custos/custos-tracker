@@ -1,0 +1,31 @@
+# Build
+build*/
+install*/
+compile_commands.json
+
+# Model weights — fetched by models/get_models.sh, pinned in models/manifest.json
+models/*.onnx
+models/*.pt
+models/cache/
+
+# Dataset payloads — fetched by data/fetch_*.sh
+data/otb/
+data/mot/
+data/clips/
+data/downloads/
+
+# Run outputs
+results/
+*.mp4
+*.avi
+
+# Python tooling
+tools/.venv/
+__pycache__/
+*.pyc
+
+# Editor / misc
+.cache/
+.vscode/
+.idea/
+*.swp
