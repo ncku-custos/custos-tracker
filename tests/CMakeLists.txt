@@ -18,3 +18,4 @@ endfunction()
 include(GoogleTest)
 
 ctrk_add_test(test_version test_version.cpp)
+ctrk_add_test(test_geometry test_geometry.cpp)

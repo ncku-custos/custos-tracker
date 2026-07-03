@@ -2,6 +2,7 @@ configure_file(src/common/version.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/version.cpp
 
 add_library(ctrk_common STATIC
   ${CMAKE_CURRENT_BINARY_DIR}/version.cpp
+  src/common/geometry.cpp
 )
 add_library(ctrk::common ALIAS ctrk_common)
 
