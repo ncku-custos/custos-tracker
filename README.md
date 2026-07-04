@@ -2,8 +2,9 @@
 
 Visual tracking for a drone companion computer: **SOT** (single-object tracking, the main
 goal) and **tracking-by-detection** (TBD), built as ROS-free C++20 core libraries with thin
-CLI apps. ROS2 Lyrical node wrappers come later (step 4); NPU deployment comes later — all
-models are chosen to be NPU-portable (conv-only, static shapes, INT8-friendly, opset 12).
+CLI apps and **ROS2 Lyrical composable lifecycle nodes** (`ros2/`, step 4). NPU deployment
+comes later — all models are chosen to be NPU-portable (conv-only, static shapes,
+INT8-friendly, opset 12).
 
 ## Subsystems
 
@@ -56,6 +57,28 @@ Datasets: `data/fetch_otb.sh`, `data/fetch_mot.sh`.
   `--penalty-k=0.138 --size-lr=0.348`) — big vehicle-tracking gains, person
   regressions; v2 stays default (S3.7).
 
+## ROS2 (step 4)
+
+The core is consumed strictly via `find_package(ctrk)`; `ros2/` holds two ament packages:
+`ctrk_interfaces` (SotStatus msg + SetTarget srv — the one place vision_msgs wasn't enough)
+and `ctrk_ros` (composable **lifecycle** components: `ctrk_tbd_node`, `ctrk_sot_node`, plus
+`ctrk_frames_player`/`ctrk_draw_node` for playback and debug overlay).
+
+```sh
+scripts/ros_check.sh        # core install to ros2/install-ctrk + colcon build + test
+ros2 launch ctrk_ros tbd.launch.py params_file:=ros2/ctrk_ros/params/tbd_drone.yaml
+ros2 launch ctrk_ros pipeline.launch.py container:=component_container_isolated  # player->tracker->draw
+```
+
+- Topics: `image` (bgr8, zero-copy into the core; best-effort depth 1 = latest-frame-wins)
+  -> `tracks` (vision_msgs/Detection2DArray) / `target` (SotStatus); SOT init via the
+  `set_target` service or the `init_bbox` param.
+- Parameters map 1:1 onto the config structs (defaults = struct defaults; see
+  `ros2/ctrk_ros/params/*_default.yaml` for the annotated reference, `*_drone.yaml` for the
+  D-0013 flight profiles). **`nominal_fps` must match the camera rate** or KF dt is scaled.
+- `scripts/ros_parity.sh` proves the node path digit-identical to the CLI (RESULTS.md S4.1);
+  `scripts/ros_bench.sh` runs the container/intra-process matrix (S4.2).
+
 ## Layout
 
 ```
@@ -65,9 +88,10 @@ core/src/infer       IEngine seam + ONNX Runtime backend
 core/src/sot         NanoTrack siamese pipeline + MOSSE fallback
 core/src/tbd         detector wrapper + SORT/ByteTrack association
 apps/                track_sot, track_tbd CLIs
+ros2/                ctrk_interfaces + ctrk_ros ament packages (lifecycle components)
 tools/               Python tooling only (model export, metric evaluation)
 tests/               gtest unit tests + synthetic-video e2e
-docs/                PLAN.md, DECISIONS.md, RESULTS.md, ROADMAP.md (steps 3-4 handoff)
+docs/                PLAN.md, DECISIONS.md, RESULTS.md, ROADMAP.md (SoC handoff)
 ```
 
 ## License

@@ -840,3 +840,35 @@ re-run is mandatory before trusting any of this on the vehicle (D-0011).
 stamp→annotated (~11 ms) measures the draw path with the latest overlay,
 not the full tracking loop — draw does not wait for the current frame's
 tracks.
+
+## S4.3 — step-4 rollup (v0.4.0, 2026-07-04)
+
+Shipped: `find_package(ctrk)` works (config-file package, D-0015);
+`ctrk_interfaces` (SotStatus + SetTarget — the one custom-msg exception)
+and `ctrk_ros` (TBD + SOT composable lifecycle components, frames_player,
+draw) with params 1:1 to the config structs (D-0016); launch files with
+auto lifecycle walk; default/drone param profiles (tbd_drone carries the
+D-0013 GMC posture); `scripts/ros_check.sh` (22 gtest cases, 0 skipped on
+this host; MOSSE e2e is the model-free CI anchor), `scripts/ros_parity.sh`
+(S4.1, gating), `scripts/ros_bench.sh` (S4.2). Zero core behavior
+changes; core CMake gained only packaging (+ VERSION alignment to 0.4.0).
+
+Headlines: the node path is **digit-identical** to the CLI on every
+anchor (MOTA 31.3 / IDSW 23 / AUC 0.631 reproduced from ROS dumps,
+GMC drone profile included); node overhead is +0.3 ms callback / +2.3 ms
+full path for TBD and +0.6 ms (~50% relative) for SOT; the composed
+pipeline defaults to the single-threaded container + IPC (D-0017), with
+isolated as the high-rate option and the MT container rejected.
+
+Findings worth remembering: imread-vs-VideoCapture JPEG decode
+divergence and FFmpeg's 25 fps image-sequence default (S4.1 — the
+`nominal_fps`-must-match-camera deployment note); the params-YAML
+all-comments rcl parse quirk (S4.0); `ros2 launch` ignoring a lone
+SIGINT without a tty + container zombies hijacking lifecycle CLI calls;
+the bench-table flush race through the launch relay (S4.2 harness
+notes). Negative/rejected on the record: H-IPC's ≥2 ms claim, H-PIPE's
+0.9×1/max-stage bar, the MT container.
+
+Not done, deliberately: cv_bridge/image_transport (SoC-decision seams,
+D-0016), lifecycle manager dependency (scripts drive transitions), any
+SoC tuning (D-0011). Next: step 5, SoC deployment — see ROADMAP.md.

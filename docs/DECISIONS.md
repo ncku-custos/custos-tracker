@@ -188,3 +188,61 @@ the keep-or-revert discipline. The concrete resume recipe lives in S3.9;
 the decision point for actually doing it is when drone-footage SOT evals
 exist or when mini-OTB person robustness (currently v2+re-ID's win over
 v3) becomes the binding constraint.
+
+## D-0015 — ROS2 packaging: config-file CMake package + in-repo ament packages, core not a rosdep key (2026-07-04)
+
+Step-4 structure (RESULTS.md S4.0). The core stays a plain CMake package
+consumed via `find_package(ctrk)`: a generated `ctrkConfig.cmake` carries
+`find_dependency(OpenCV ...)` and the onnxruntime branch (system package
+re-found; tarball builds bake absolute dirs — same-machine only), and
+every target's EXPORT_NAME matches its in-tree alias. The ROS side lives
+in `ros2/` as two ament packages (`ctrk_interfaces`, `ctrk_ros`);
+`scripts/ros_check.sh` installs the core into `ros2/install-ctrk` and
+runs colcon with cwd `ros2/`. `ctrk` is deliberately absent from
+package.xml — rosdep cannot resolve it and colcon needs no ordering, the
+prefix step provides it. Rejected alternatives: repo root as a colcon
+"plain cmake" package (package identification stops directory recursion,
+hiding `ros2/`, and colcon would rebuild core — including the gtest
+FetchContent network hit — inside its own build dir); root COLCON_IGNORE
+(hides ros2/ too); a symlinked overlay workspace (pure indirection).
+`scripts/check.sh` is untouched and core-only checkouts never see ROS.
+
+## D-0016 — topic/param contract: vision_msgs where it fits, one custom msg where it does not, params 1:1 with config structs (2026-07-04)
+
+TBD publishes standard `vision_msgs/Detection2DArray` (Confirmed only by
+default; center-convention bbox, `detection.id` = track id). SOT state
+(IDLE/TRACKING/UNSTABLE/LOST) has no vision_msgs home, so
+`ctrk_interfaces/SotStatus` carries it in ctrk's top-left pixel
+convention, and `SetTarget`/`reset` services own target init — the
+PLAN.md "own msgs only if insufficient" clause exercised once. Parameters
+map 1:1 onto the config structs with struct defaults; the three
+deliberate exceptions mirror CLI operating defaults (reid.embedder=hsv,
+reacquire class_id=0, reacquire conf_thr=0.25 promoted from a hardcode).
+Image input is bgr8-only, wrapped zero-copy into FrameView — **no
+cv_bridge, no image_transport this step**: both are seams isolated behind
+frame_view.hpp/draw_node, decided when the SoC vendor image's package set
+is known. The tracker dump lives in the node (`dump_path`, the CLI's
+exact snprintf) rather than a sink node: same code path as the CLI, no
+QoS in the measurement loop, doubles as a flight black-box. Process-wide
+ctrk log/profile sinks bridge once per process (single components .so;
+sink_bridge registry) — one rclcpp logger "ctrk", per-node profile
+collectors. Deployment note from the S4.1 post-mortem: `nominal_fps`
+must match the camera rate or KF dt is scaled.
+
+## D-0017 — executor/composition verdict: single-threaded container + intra-process comms; MT container rejected (2026-07-04)
+
+The step-2-deferred pipelining question, answered by measurement
+(RESULTS.md S4.2). At the camera's 30 Hz, the plain single-threaded
+`component_container` with intra-process comms on gives the best e2e
+latency (19.31 ms stamp→tracks p50, +2.3 ms over the CLI), the lowest
+CPU, and comfortable headroom — it is the launch default.
+`component_container_isolated` (one executor per node) is the documented
+high-rate option: +23% sustained throughput when the input outruns
+~35 Hz. `component_container_mt` is rejected outright — its worker pool
+fights ORT's spinning intra-op threads and it loses on every axis.
+Intra-process comms stays on for latency (0.3–1.1 ms, cheap 6 MB
+loopback on desktop bandwidth) with a recorded overload caveat: under a
+firehose the ST executor absorbs the drops itself; DDS-side dropping
+(IPC off) sustains more. All verdicts are 16-thread-desktop verdicts —
+D-0011 applies in full: re-run `scripts/ros_bench.sh` on the SoC before
+believing any of it there.
