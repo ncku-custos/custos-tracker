@@ -58,7 +58,8 @@ def generate_launch_description():
                 ParameterValue(LaunchConfiguration('threads'), value_type=int),
             'detect_interval':
                 ParameterValue(LaunchConfiguration('detect_every'), value_type=int),
-            'gmc': LaunchConfiguration('gmc'),
+            # value_type=str: yaml would otherwise parse the default 'off' as a bool
+            'gmc': ParameterValue(LaunchConfiguration('gmc'), value_type=str),
             'bench': ParameterValue(LaunchConfiguration('bench'), value_type=bool),
         }],
         extra_arguments=extra)
