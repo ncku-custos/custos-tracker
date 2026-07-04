@@ -785,3 +785,58 @@ ROS-vs-CLI comparison, fixed in the player):
    `nominal_fps: 30` computes dt 1.2 and drifts in the last digit. The
    parity script pins player fps and node nominal_fps together; deployment
    note: **nominal_fps must match the camera rate** or KF dt is scaled.
+
+## S4.2 — composition study: executor flavor x intra-process comms (2026-07-04)
+
+The step-2-deferred capture/infer/draw pipelining, answered as an
+executor/composition measurement. Pipeline: frames_player (1080p
+MOT16-04, clock stamps) -> tbd tracker (fp32@640, threads=8) -> draw,
+composed in ONE container; `scripts/ros_bench.sh`, medians of 3 reps,
+powersave governor, 16-thread host. Latency runs at 30 Hz offered;
+throughput runs at 200 Hz offered over the best-effort depth-1 sub (the
+latest-frame-wins flight posture).
+
+| container + IPC | cb p50 | e2e stamp→tracks p50/p95 | stamp→annotated | CPU | sustained Hz |
+|---|---|---|---|---|---|
+| **single-threaded + IPC** | **17.34** | **19.31** / 26.35 | **11 ms** | **804%** | 34.8 |
+| single-threaded, no IPC | 17.36 | 19.63 / 27.27 | 11 ms | 807% | 42.6 |
+| multi-threaded + IPC | 22.55 | 24.74 / 29.71 | 18 ms | 849% | 37.6 |
+| multi-threaded, no IPC | 22.63 | 24.67 / 29.74 | 15 ms | 840% | 35.6 |
+| isolated + IPC | 19.14 | 19.65 / 27.13 | 14 ms | 821% | **42.8** |
+| isolated, no IPC | 19.01 | 20.80 / 28.72 | 14 ms | 828% | 41.5 |
+
+Hypothesis verdicts:
+
+- **H-OVERHEAD — confirmed.** TBD node callback p50 17.34 ms vs the CLI's
+  17.05 (+0.3 ms); full stamp→tracks path 19.31 (+2.3 ms incl. image
+  transport + FrameView wrap + publish). SOT (nano, 30 Hz Car4): callback
+  2.34 ms vs 1.72 CLI (+0.6 ms), e2e 2.57 — small absolutely, ~50%
+  relatively; at SOT rates the ROS plumbing is a visible fraction of the
+  budget and that is the honest headline.
+- **H-IPC — rejected as stated.** Intra-process ON was worth 0.3 ms (ST)
+  to 1.1 ms (isolated) e2e p50, not the hypothesized ≥2 ms: desktop
+  memory bandwidth makes the 6 MB loopback copy cheap. Kept ON as the
+  launch default (never hurts, monotonically helps latency) — but the
+  quantitative claim did not survive, and there is a genuine surprise
+  under overload: at 200 Hz offered, ST+IPC sustains only 34.8 Hz while
+  ST-without-IPC reaches 42.6 — with IPC the single executor thread
+  itself must absorb and discard the firehose, stealing tracker time,
+  whereas DDS does the dropping on its own threads when IPC is off.
+- **H-PIPE — partially confirmed, bar missed.** Composition lifts
+  sustained throughput 34.8 → 42.8 Hz (+23%, isolated vs ST+IPC), but
+  nobody reaches the hypothesized 0.9 × 1/max-stage (52 Hz): at
+  saturation the player decode, draw raster, and DDS threads contend
+  with ORT's 8 spinning intra-op threads, and effective inference climbs
+  toward its p95. The multi-threaded container is **strictly dominated**
+  (worst latency, worst CPU, middling throughput — its worker pool
+  fights the ORT spin pool) — do not use it for this workload.
+
+**Verdict (D-0017): the single-threaded container with IPC on is the
+default** — best latency (19.31 ms), lowest CPU, and at the camera's
+30 Hz it has comfortable headroom (Σstages ≈ 28 ms < 33 ms budget).
+`component_container_isolated` is the documented high-rate option
+(>~35 Hz input). All numbers are 16-thread-desktop numbers; the SoC
+re-run is mandatory before trusting any of this on the vehicle (D-0011).
+stamp→annotated (~11 ms) measures the draw path with the latest overlay,
+not the full tracking loop — draw does not wait for the current frame's
+tracks.
