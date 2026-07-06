@@ -6,7 +6,7 @@ Append-only log of decisions that are expensive to revisit. Newest last.
 
 Full plan in `docs/PLAN.md`. C++20 with system OpenCV 4.10 for I/O and image ops. Hot loops
 drop to C-style only when a profile proves it matters. Public headers (`core/include/ctrk/`)
-expose plain structs only — no OpenCV, no ROS types — so step-4 ROS2 wrapping and a future
+expose plain structs only — no OpenCV, no ROS types — so ROS2 wrapping and a future
 NPU-vendor build stay mechanical.
 
 ## D-0002 — Models and datasets are fetched, never committed
@@ -32,7 +32,7 @@ Evaluated 2026-07. Better vendor-claimed numbers than v8n (mAP 40.9 vs 37.3, ~2x
 but its NMS-free one-to-one head does not survive real NPU export today: RKNN INT8
 segfault/empty-detection issues (ultralytics#23340, #23753) unresolved through mid-2026; an
 independent Hailo port required a manual CPU/NPU graph split; zero TI/NXP model-zoo
-presence. Still AGPL-3.0, so it does not even resolve D-0003. Re-evaluate at step 3 once the
+presence. Still AGPL-3.0, so it does not even resolve D-0003. Re-evaluate once the
 NPU vendor is known.
 
 ## D-0005 — SOT: NanoTrack v2/v3 with cv::TrackerNano as differential oracle
@@ -43,7 +43,7 @@ and (c) implemented in a maintained C++ reference (`cv::TrackerNano` in system O
 giving a mechanical correctness oracle: our pipeline must match it at median IoU >= 0.9.
 NanoTrack v3 ships ONNX and is a large quality jump over v2 (GOT-10k-Val AO 0.680 -> 0.719,
 VOT2018 EAO 0.352 -> 0.449); M2 opens with a spike testing v3 against the oracle path —
-adopt v3 if compatible, else v2. Step-3 upgrade target: LightFC (best conv-only tracker,
+adopt v3 if compatible, else v2. Planned upgrade target: LightFC (best conv-only tracker,
 UAV123 AUC 64.8, 3.16M params) — it costs the oracle property, so it lands only after our
 own harness is trusted. Every 2024-2026 tracker that beats LightFC does so by re-adding
 transformer attention (AsymTrack, SMAT, HiT, LiteTrack) — deferred until the NPU is known.
@@ -51,9 +51,9 @@ transformer attention (AsymTrack, SMAT, HiT, LiteTrack) — deferred until the N
 ## D-0005a — M2 spike verdict (2026-07-03): NanoTrack v2 ships, v3 deferred
 
 The v3 head emits 15x15 score maps; cv::TrackerNano hardcodes the 16x16 grid
-((255-127)/16+8), so v3 cannot ride the differential-oracle path. v2 ships for
-step 1. v3 (needs bespoke 15x15 postproc, unverifiable against the oracle)
-moves to the step-3 upgrade list next to LightFC. Second finding: the
+((255-127)/16+8), so v3 cannot ride the differential-oracle path. v2 ships.
+v3 (needs bespoke 15x15 postproc, unverifiable against the oracle)
+moves to the quality-upgrade list next to LightFC. Second finding: the
 published NanoTrack graphs use HardSwish, an op that ENTERED ONNX at opset 14
 — opset 12 is unreachable for them without decomposing HardSwish
 (x * HardSigmoid(x)); most NPU toolchains support HardSwish natively, so we
@@ -98,7 +98,7 @@ default CPU EP for YOLOv8n despite shipping in the Ubuntu package — not
 worth a config surface) and ORT auto thread selection (worse than explicit
 nproc−2). Spinning-off is the recommended power posture for the SoC: on TBD
 it trades ~3% latency for ~40% process-CPU; re-measure both on the real
-target before freezing step-4 defaults.
+target before freezing deployment defaults.
 
 ## D-0008 — INT8 rehearsal verdict: quantize the detector, not the tiny tracker (2026-07-03)
 
@@ -120,25 +120,25 @@ tools/export/quantize.py, never fetched.
 
 ## D-0011 — new reference host; anchors carry over, tuning verdicts do not (2026-07-03)
 
-Step-3 development moves to a Ryzen 7 7700 + RTX 5060 host (full spec in
+Development moves to a Ryzen 7 7700 + RTX 5060 host (full spec in
 RESULTS.md S3.0). Verdict on what transfers: **quality anchors carry over
 unchanged** — mini-OTB mean AUC 0.631 and MOT16-04 MOTA 31.0 / IDSW 23 /
 IDF1 43.7 reproduced digit-identical from fresh local exports (same
 ultralytics 8.4.86 pin, SHA-pinned tracker weights, deterministic C++
-pipeline), so the step-2 gate numbers remain canonical and no re-anchor was
+pipeline), so the v0.2.0 gate numbers remain canonical and no re-anchor was
 needed. **Host tuning verdicts do not transfer and must be re-swept per
 host** (confirming D-0010's warning): detector-best is 8 intra-op threads
 (= physical cores; SMT oversubscription regresses ~20%) where the i5 wanted
 nproc−2 = 10, and the i5's "2t+no-spin strictly dominates" SOT verdict
 flips — spin buys ~12% latency here. Portable defaults stay as-is (4-thread
 detector, 2t+no-spin SOT); host-best settings live in `--threads` and
-`scripts/bench.sh tbd_tuned`. Same discipline applies to the step-4 SoC:
+`scripts/bench.sh tbd_tuned`. Same discipline applies to the SoC:
 re-sweep, don't port numbers. The GPU unblocks ROADMAP item 9 (VisDrone
 fine-tune); training runs on this host with torch cu128.
 
 ## D-0012 — re-ID embedder ladder verdict: HSV for the re-lock veto, NanoZ reuse for drift, no new model (2026-07-03)
 
-Step-3 item 1 (RESULTS.md S3.3). The ladder stopped before OSNet: the HSV
+Full data in RESULTS.md S3.3. The ladder stopped before OSNet: the HSV
 H-S histogram (zero models, backend-free) is the re-lock verifier — it
 removes the M4 wrong-jogger re-lock at accept 0.4 and improves the Woman
 rescue — and the NanoTrack template branch reused as an embedder
@@ -155,19 +155,19 @@ niche neither zero-cost embedder failed to cover — not taken; revisit
 only if a real drone scenario shows both embedders failing (that evidence
 would also justify the model cost). References freeze at init by design:
 re-ID must answer "is this the ORIGINAL target", and template adaptation
-is the separate dual-template experiment (step-3 item 7).
+is the separate dual-template experiment (RESULTS.md S3.8).
 
 ## D-0013 — GMC: sparse-flow partial affine, opt-in on host, default-on posture for the drone (2026-07-03)
 
-Step-3 item 2 (RESULTS.md S3.4). Method: BoT-SORT-style sparse LK flow on
+Full data in RESULTS.md S3.4. Method: BoT-SORT-style sparse LK flow on
 a ~480 px gray working copy + RANSAC partial affine, applied to the KF
 state of every track on every frame (coast frames included) — full
 BoT-SORT form with covariance congruence via `KalmanBox::apply_affine`.
 Verdict: kept, `--gmc`, OFF by default on the host — the moving-camera
 gain is decisive (MOT16-13 MOTA +5.4 / IDF1 +9.7 at N=1) and the
 static-camera check is within gates, but it prices every coast frame at
-~2 ms (vs ~4 us), which inverts the step-2 detect-every-N latency story
-on a machine where the camera may not move. For the step-4 drone
+~2 ms (vs ~4 us), which inverts the detect-every-N latency story (S2.3)
+on a machine where the camera may not move. For the drone
 deployment the camera ALWAYS moves: plan to flip GMC on as the SoC
 default operating point and re-measure there. Engineering lesson pinned
 in S3.4: covariance congruences in float32 need re-symmetrization or
@@ -176,22 +176,22 @@ feature (e.g. homography GMC) must keep the `(P+P')/2` line.
 
 ## D-0014 — LightFC deferred with sourcing de-risked (2026-07-03)
 
-Step-3 item 8 (RESULTS.md S3.9). The scheduled risk — weights sourcing
+Full data in RESULTS.md S3.9. The scheduled risk — weights sourcing
 from a research repo — is retired: MIT license confirmed, checkpoint
 downloaded and SHA-pinned (gdown id + sha256 in S3.9), architecture
 verified export-friendly (two-graph split matching our engine seam,
 conv-only backbone). Implementation deferred anyway: the remaining work
 (RepVGG-style head fusion, bespoke crop/normalization/center-head
 postproc, no differential oracle) is a focused half-day-plus that would
-have shipped numerically unvalidated at the end of the step — against
-the keep-or-revert discipline. The concrete resume recipe lives in S3.9;
+have shipped numerically unvalidated — against the keep-or-revert
+discipline. The concrete resume recipe lives in S3.9;
 the decision point for actually doing it is when drone-footage SOT evals
 exist or when mini-OTB person robustness (currently v2+re-ID's win over
 v3) becomes the binding constraint.
 
 ## D-0015 — ROS2 packaging: config-file CMake package + in-repo ament packages, core not a rosdep key (2026-07-04)
 
-Step-4 structure (RESULTS.md S4.0). The core stays a plain CMake package
+Packaging structure (RESULTS.md S4.0). The core stays a plain CMake package
 consumed via `find_package(ctrk)`: a generated `ctrkConfig.cmake` carries
 `find_dependency(OpenCV ...)` and the onnxruntime branch (system package
 re-found; tarball builds bake absolute dirs — same-machine only), and
@@ -219,7 +219,7 @@ map 1:1 onto the config structs with struct defaults; the three
 deliberate exceptions mirror CLI operating defaults (reid.embedder=hsv,
 reacquire class_id=0, reacquire conf_thr=0.25 promoted from a hardcode).
 Image input is bgr8-only, wrapped zero-copy into FrameView — **no
-cv_bridge, no image_transport this step**: both are seams isolated behind
+cv_bridge, no image_transport yet**: both are seams isolated behind
 frame_view.hpp/draw_node, decided when the SoC vendor image's package set
 is known. The tracker dump lives in the node (`dump_path`, the CLI's
 exact snprintf) rather than a sink node: same code path as the CLI, no
@@ -231,7 +231,7 @@ must match the camera rate or KF dt is scaled.
 
 ## D-0017 — executor/composition verdict: single-threaded container + intra-process comms; MT container rejected (2026-07-04)
 
-The step-2-deferred pipelining question, answered by measurement
+The deferred pipelining question, answered by measurement
 (RESULTS.md S4.2). At the camera's 30 Hz, the plain single-threaded
 `component_container` with intra-process comms on gives the best e2e
 latency (19.31 ms stamp→tracks p50, +2.3 ms over the CLI), the lowest

@@ -1,7 +1,7 @@
 # Results
 
 Metric and latency tables per milestone. Populated as milestones land; this file is the
-regression baseline for step 2 (speed) and step 3 (quality improvements).
+regression baseline for the speed and quality work that follows.
 
 ## M1 — TBD on MOT16-04 (2026-07-03, host CPU, 1920x1080, YOLOv8n@640 person class)
 
@@ -14,7 +14,7 @@ Acceptance: MOTA > 25% ✓ (31.0%) · ByteTrack IDSW cut >= 20% vs SORT ✓ (29 
 -20.7%) · >= 10 FPS ✓ (~22). GT: MOT16 native (motchallenge.net unreachable; MOT17
 re-annotation swap pending network access — flagged in fetch_mot.sh). High FN is the
 COCO-pretrained nano detector on small/occluded pedestrians — expected at this stage;
-VisDrone/finetune is step 3.
+the VisDrone fine-tune (S3.6) is the later remedy.
 
 ## M2 — NanoTrack v2 on mini-OTB (2026-07-03, host CPU, 3 static ORT graphs)
 
@@ -32,8 +32,8 @@ Acceptance: differential vs cv::TrackerNano median IoU >= 0.9 ✓ (test green) �
 mean AUC >= 0.55 ✓ (0.631) · >= 80 FPS ✓ (~420). Sequence notes: DragonBaby was
 never archived and Human3's zip does not survive Wayback transfer — replaced by
 Woman and Jogging (documented in fetch_otb.sh). Girl2 (1500 frames, repeated full
-occlusion) is the known weak spot — re-acquisition (M4) and step-3 improvements
-target exactly this.
+occlusion) is the known weak spot — re-acquisition (M4) and the later quality
+improvements target exactly this.
 
 ## M3 — MOSSE fallback on mini-OTB (same run)
 
@@ -63,15 +63,15 @@ distractor never re-locks.
 | Case | Without re-acquire | With re-acquire | What it shows |
 |---|---|---|---|
 | Woman / MOSSE | AUC 0.102, prec@20 0.198 | AUC 0.198, **prec@20 0.454** | The rescue loop works on real footage (1 re-lock fired) |
-| Jogging / MOSSE | AUC 0.558 | AUC 0.155 | Two adjacent same-class targets: gates re-lock the WRONG jogger — needs appearance verification (step 3 re-ID) |
-| Girl2 / nano | AUC 0.437 | AUC 0.437 (never fires) | NanoTrack fails by CONFIDENT drift to a distractor; score never collapses, so confidence-gated loss detection is blind to it (step 3: re-ID verification, GMC) |
+| Jogging / MOSSE | AUC 0.558 | AUC 0.155 | Two adjacent same-class targets: gates re-lock the WRONG jogger — needs appearance verification (re-ID, S3.3) |
+| Girl2 / nano | AUC 0.437 | AUC 0.437 (never fires) | NanoTrack fails by CONFIDENT drift to a distractor; score never collapses, so confidence-gated loss detection is blind to it (re-ID verification S3.3, GMC S3.4) |
 
 Consequence for defaults: `--reacquire` is opt-in per scenario; for a
 single-target-class scene with real occlusions it is a clear win, in
-multi-instance scenes it needs step-3 appearance verification. Both failure
-modes are exactly the top of the step-3 improvement list.
+multi-instance scenes it needs appearance verification (S3.3). Both failure
+modes are exactly the top of the quality-improvement list.
 
-## Latency baseline (step-2 optimization reference, host: 12-core x86_64)
+## Latency baseline (optimization reference, host: 12-core x86_64)
 
 | Pipeline | Input | n | mean | p50 | p95 | FPS(p50) |
 |---|---|---|---|---|---|---|
@@ -85,7 +85,7 @@ history). Known cosmetic noise: duplicate ONNX schema warnings at startup when
 OpenCV-dnn and ONNX Runtime coexist in one process (each carries a libonnx copy) —
 harmless, filtered in scripts.
 
-# Step 2 — speed optimization (started 2026-07-03)
+# Speed optimization (S2.x, started 2026-07-03)
 
 Method: every change is hypothesis -> `scripts/bench.sh` before/after -> keep only
 if the p50 delta clears 2x the baseline stddev below; reverted experiments get
@@ -194,8 +194,8 @@ Findings:
 - Caveat for fast targets: a track still inside n_init confirmation has no
   learned velocity, and the tentative-stage IoU gate (0.7) sees N× the
   inter-detection motion — track birth churns for objects moving faster
-  than ~⅓ box-width per detect interval. Step-3 re-ID/GMC work also lands
-  here.
+  than ~⅓ box-width per detect interval. The re-ID/GMC quality work also
+  lands here.
 - Side observation: detect-frame p50 is *lower* at N≥2 (28-30 vs 31 ms) —
   the idle coast frames let the hybrid cores recover boost headroom.
 
@@ -251,7 +251,7 @@ crops (nano). Two rehearsal lessons were earned the hard way:
   plan). Re-run this experiment with the vendor toolchain once the NPU is
   known — the balance is different there (D-0008).
 
-## S2.6 — step-2 rollup (v0.2.0, 2026-07-03)
+## S2.6 — speed-optimization rollup (v0.2.0, 2026-07-03)
 
 Final `scripts/bench.sh --reps 3` (powersave governor, unpinned; note the
 no-spin SOT default also collapsed run-to-run variance, σ 0.27 → 0.005):
@@ -266,7 +266,7 @@ no-spin SOT default also collapsed run-to-run variance, σ 0.27 → 0.005):
 | SOT nano @1080p | 3.65 ms | **2.12 ms (472 FPS)** | −42% | (same code path) |
 | SOT MOSSE Car4 | 0.370 ms | 0.221 ms | −40% | bit-exact subwindow test |
 
-Acceptance-bar scorecard (plan: draft-a-plan step 2):
+Acceptance-bar scorecard (against the speed plan's bars):
 - SOT Car4 ≤ 2.2 ms ✓ (1.94) · SOT@1080p ≥ 40% cut ✓ (−42%) · quality
   gates ✓ (strongest form: byte-identical / digit-identical / bit-exact) ·
   ladder ≥ 30 FPS with quantified cost ✓ (three rungs: 42 / 67 / ~99 FPS) ·
@@ -277,18 +277,18 @@ Acceptance-bar scorecard (plan: draft-a-plan step 2):
   lever left; the plan's risk section predicted exactly this. The INT8 rung
   (24.0 ms, metric-parity) crosses the bar in practice and is one flag away.
 
-Recommended operating points (host; re-validate on the SoC in step 4):
+Recommended operating points (host; re-validate on the SoC):
 - **Drone TBD**: `--threads=<nproc-2> --model=..._int8.onnx --detect-every=2`
   → ~99 FPS effective, MOTA −1.1 vs baseline, identity metrics better than
   baseline. Add `--no-spin` when power matters (−40% CPU, +~1 ms).
 - **Drone SOT**: defaults (2 threads, no-spin) — 1.9-2.1 ms/frame leaves
   >90% of a 30 FPS frame budget to the rest of the system.
-- Step-3 quality work (re-ID, GMC) should re-run this ladder; the knobs
+- Follow-on quality work (re-ID, GMC) should re-run this ladder; the knobs
   compose with it unchanged.
 
-# Step 3 — quality improvements (started 2026-07-03)
+# Quality improvements (S3.x, started 2026-07-03)
 
-Method unchanged from step 2: hypothesis -> eval -> keep-or-revert; negative
+Method unchanged from the speed work: hypothesis -> eval -> keep-or-revert; negative
 results recorded. Quality gates for default-config changes (anchors reproduced
 digit-identical on this host, see S3.0 — no re-anchor needed): all tests green
 with the oracle and golden tensor actually RUNNING (they GTEST_SKIP without
@@ -298,19 +298,19 @@ mini-OTB mean AUC within 0.005 of 0.631, MOT16-04 MOTA within 0.2 pt of
 Latency claims clear 2x the S3.0 stddev. Oracle-breaking features stay
 config-gated until metrics prove them.
 
-## S3.0 — step-2 host retired; new-host bring-up + baseline (2026-07-03)
+## S3.0 — old reference host retired; new-host bring-up + baseline (2026-07-03)
 
 Host: AMD Ryzen 7 7700 (8C/16T homogeneous, AVX-512), 14 GB RAM, RTX 5060
-8 GB (driver 580.159.03, CUDA 13.0 — unblocks the step-3 VisDrone item),
+8 GB (driver 580.159.03, CUDA 13.0 — unblocks the VisDrone fine-tune item),
 Ubuntu 26.04, gcc 15.2, OpenCV 4.10, ORT 1.23, powersave governor. Python
 tooling: torch 2.11.0+cu128, ultralytics resolved to **8.4.86 — the exact
-step-2 pin**, so YOLO exports are the same graphs.
+pin behind the v0.2.0 exports**, so YOLO exports are the same graphs.
 
 Gate reproduction (fresh local exports, MOT16 native GT — motchallenge.net
 is connection-refused from this network too, so the MOT17-04 GT upgrade
 stays pending):
 
-| gate | step-2 anchor | this host | verdict |
+| gate | v0.2.0 anchor | this host | verdict |
 |---|---|---|---|
 | mini-OTB mean AUC | 0.631 | 0.631 (all 6 per-seq AUCs identical) | exact |
 | MOT16-04 MOTA / IDSW / IDF1 | 31.0% / 23 / 43.7% | 31.0% / 23 / 43.7% | digit-identical |
@@ -343,7 +343,7 @@ do NOT transfer, as that entry warned):
   4t+spin 1.226 ms / 726%. On the i5, no-spin was fastest AND cheapest; here
   no-spin costs ~12% latency for −40% CPU. The default stays no-spin (it is
   the SoC power posture, and the absolute cost is 0.2 ms), but the "strictly
-  dominates" claim is i5-specific — re-measure on the SoC in step 4.
+  dominates" claim is i5-specific — re-measure on the SoC.
 
 MOT16-13 baseline (new second eval scenario, bus-mounted moving camera,
 750 frames; MOT16 native GT, pedestrian class):
@@ -498,7 +498,7 @@ detector. Estimator unit-tested on synthetic pans incl. the downscale path.
 | MOT16-13 N=1 (moving cam) | 13.8 / 5 / 22.4 | **19.2** / 6 / **32.1** |
 | MOT16-13 N=2 | 14.7 / 7 / 23.5 | **18.5** / 5 / **30.7** |
 
-- **Moving camera: the largest single quality jump of step 3** (+5.4 MOTA,
+- **Moving camera: the largest single jump of the quality pass** (+5.4 MOTA,
   +9.7 IDF1 at N=1; FN −687). Static camera: within gates at both
   intervals (the neutrality safety check).
 - **Cost**: `gmc` stage 2.05 ms p50 at 1080p — coast frames go from ~4 us
@@ -520,7 +520,7 @@ detector. Estimator unit-tested on synthetic pans incl. the downscale path.
 - Not taken: feeding the warp into the SOT search window. The SOT crop is
   target-centered (camera motion mostly cancels through the tracked
   position) and mini-OTB has no scenario isolating the effect; revisit on
-  drone footage in step 4 if search-window loss shows up.
+  drone footage at SoC deployment if search-window loss shows up.
 
 ## S3.5 — appearance cost in TBD association: null result with HSV, seam kept (2026-07-03)
 
@@ -553,7 +553,7 @@ IoU+GMC in crowd association at these scales.
 
 The GPU unblock (D-0011) made ROADMAP item 9 cheap: yolov8n on VisDrone,
 80 epochs / imgsz 640 / batch 16 on the RTX 5060 took **~65 min**
-(vs "days of CPU training" on the step-2 host). Val: mAP50 0.309 /
+(vs "days of CPU training" on the previous host). Val: mAP50 0.309 /
 mAP50-95 0.174 (pedestrian 0.324, car 0.733 — in line with published
 yolov8n-VisDrone numbers). `export_yolo.py` now takes `--weights/--stem`
 (output-shape assert generalized to the class count; the default yolov8n
@@ -573,10 +573,10 @@ pedestrian/people; `--classes` ids are VisDrone's, not COCO's):
 The aerial fine-tune LOSES on eye-level street footage — worse
 localization (MOTP +0.04), 2x FP, IDSW 23 -> 71 on MOT16-04. Expected
 (VisDrone is small-object aerial imagery; the caveat was recorded before
-training) and the model's actual customer is step-4 drone footage, where
+training) and the model's actual customer is real drone footage, where
 it should be re-evaluated against COCO-yolov8n before any default choice.
 COCO stays the default everywhere. INT8/VisDrone-calibration deferred to
-step 4 alongside that evaluation (no MOT16 eval exists that it could win).
+SoC deployment alongside that evaluation (no MOT16 eval exists that it could win).
 
 ## S3.7 — NanoTrack v3: vehicles up sharply, persons down; v2 stays default (2026-07-03)
 
@@ -607,7 +607,7 @@ Verdict: **v2 stays the default.** The +0.015 mean is below the +0.02
 adoption bar and composed entirely of car-sequence gains (+0.11/+0.21)
 against regressions on all four person sequences (Woman −0.09). For the
 drone use-case the car result is genuinely interesting — vehicle-centric
-step-4 scenarios should try the v3 model paths + constants — but a default
+drone scenarios should try the v3 model paths + constants — but a default
 must not trade person tracking away. Latency: v3 ≈ 430 fps vs v2 ≈ 580 on
 Car4 (96-ch backbone), both far inside budget. Published VOT2018 EAO
 0.352 -> 0.449 did not transfer to mini-OTB persons; possible causes
@@ -666,16 +666,16 @@ from zero risk:
 
 Deferred rather than rushed: a third backend without numerical validation
 would violate the keep-or-revert discipline (nothing measurable to keep),
-and the step-3 budget is better spent closing the ladder re-run (S3.10).
+and the remaining quality budget is better spent closing the ladder re-run (S3.10).
 Revisit when a drone-footage eval exists or SOT person-robustness becomes
 the binding constraint (v2 + re-ID currently holds the line there).
 
-## S3.10 — step-3 rollup (v0.3.0, 2026-07-03)
+## S3.10 — quality rollup (v0.3.0, 2026-07-03)
 
-Quality movement, step-2 baseline -> step-3 defaults (+ the GMC option),
+Quality movement, v0.2.0 baseline -> v0.3.0 defaults (+ the GMC option),
 all deterministic evals on the re-anchored host (S3.0):
 
-| MOTA / IDSW / IDF1 | step-2 (v0.2.0) | v0.3.0 defaults | v0.3.0 + `--gmc` |
+| MOTA / IDSW / IDF1 | v0.2.0 | v0.3.0 defaults | v0.3.0 + `--gmc` |
 |---|---|---|---|
 | MOT16-04 N=1 | 31.0 / 23 / 43.7 | **31.3 / 23 / 43.9** | 31.2 / 23 / 45.2 |
 | MOT16-04 N=2 | 29.2 / 18 / 44.4 | **29.9 / 18 / 44.9** | 29.9 / 19 / 44.1 |
@@ -691,7 +691,7 @@ parity-plus; 13 + GMC: 19.6/31.4).
 
 Kept defaults: NSA (S3.1), tentative relax 0.3 + patience 1 (S3.2), HSV
 re-lock veto within `--reacquire` (S3.3). Kept opt-in: GMC (S3.4, the
-step's largest single win, priced at ~2 ms/frame), NanoZ drift check
+pass's largest single win, priced at ~2 ms/frame), NanoZ drift check
 (S3.3), v3 model paths (S3.7, vehicle scenarios), appearance weight
 (S3.5, null), dual-template (S3.8, negative — do not enable), VisDrone
 model (S3.6, drone footage only). Negative results on the record: velocity
@@ -719,16 +719,16 @@ Recommended operating points:
 - **Drone SOT**: defaults + `--reacquire` (HSV veto now guards re-locks);
   add `--reid=nanoz --drift-every=5` when lookalike drift is the failure
   mode observed.
-- Step-4 (SoC) must re-sweep threads/spin (D-0011) and re-run this table;
+- SoC deployment must re-sweep threads/spin (D-0011) and re-run this table;
   none of these latencies transfer.
 
-# Step 4 — ROS2 Lyrical packaging (started 2026-07-03)
+# ROS2 Lyrical packaging (S4.x, started 2026-07-03)
 
-Scope (docs/ROADMAP.md step-4 handoff, plan-mode session 2026-07-03): wrap
+Scope (planned 2026-07-03): wrap
 the ROS-free core in composable lifecycle nodes consumed via
 `find_package(ctrk)`; the deferred capture/infer/draw pipelining lands as
 executor/composition measurements (S4.2). No core tracking-default changes
-— the step-3 quality gates hold by construction, and S4.1 proves it
+— the v0.3.0 quality gates hold by construction, and S4.1 proves it
 end-to-end. SoC items (vendor INT8, thread re-sweep, GMC default flip)
 stay out of scope; only their seams are built (params, profiles).
 
@@ -788,7 +788,7 @@ ROS-vs-CLI comparison, fixed in the player):
 
 ## S4.2 — composition study: executor flavor x intra-process comms (2026-07-04)
 
-The step-2-deferred capture/infer/draw pipelining, answered as an
+The long-deferred capture/infer/draw pipelining, answered as an
 executor/composition measurement. Pipeline: frames_player (1080p
 MOT16-04, clock stamps) -> tbd tracker (fp32@640, threads=8) -> draw,
 composed in ONE container; `scripts/ros_bench.sh`, medians of 3 reps,
@@ -841,7 +841,7 @@ stamp→annotated (~11 ms) measures the draw path with the latest overlay,
 not the full tracking loop — draw does not wait for the current frame's
 tracks.
 
-## S4.3 — step-4 rollup (v0.4.0, 2026-07-04)
+## S4.3 — ROS2 packaging rollup (v0.4.0, 2026-07-04)
 
 Shipped: `find_package(ctrk)` works (config-file package, D-0015);
 `ctrk_interfaces` (SotStatus + SetTarget — the one custom-msg exception)
@@ -871,4 +871,4 @@ notes). Negative/rejected on the record: H-IPC's ≥2 ms claim, H-PIPE's
 
 Not done, deliberately: cv_bridge/image_transport (SoC-decision seams,
 D-0016), lifecycle manager dependency (scripts drive transitions), any
-SoC tuning (D-0011). Next: step 5, SoC deployment — see ROADMAP.md.
+SoC tuning (D-0011). Next: SoC deployment — see ROADMAP.md.

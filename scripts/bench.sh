@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reproducible latency benchmark for the step-2 optimization work.
+# Reproducible latency benchmark for the optimization work in docs/RESULTS.md.
 #
 # Runs each scenario REPS times, writes per-run bench JSONs under
 # results/bench/, and prints a markdown table of the per-run p50 of the
@@ -13,7 +13,7 @@
 #                       (e.g. "0-3" = P-cores on the i5-1335U); default unpinned.
 #   CTRK_BENCH_BUILD    build directory to take binaries from (default: build).
 #
-# Methodology (docs/RESULTS.md "step 2"): AC power, machine otherwise idle,
+# Methodology (docs/RESULTS.md "Speed optimization"): AC power, machine otherwise idle,
 # report the median p50; a change is real only if it clears 2x the stddev
 # measured here. Governor/pinning are recorded in the report line.
 set -euo pipefail
@@ -74,7 +74,7 @@ if want tbd_mot16; then
     "$BUILD/apps/track_tbd" -i="$ROOT/data/mot/MOT16-04/img1/%06d.jpg" --classes=0 -o=
 fi
 
-# TBD: MOT16-13 (750 frames, 1920x1080, moving camera) — step-3 GMC scenario.
+# TBD: MOT16-13 (750 frames, 1920x1080, moving camera) — the GMC eval scenario.
 if want tbd_mot16_13; then
   run_scenario tbd_mot16_13 "detect+track" \
     "$BUILD/apps/track_tbd" -i="$ROOT/data/mot/MOT16-13/img1/%06d.jpg" --classes=0 -o=

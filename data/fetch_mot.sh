@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fetch the MOT evaluation slices: MOT16-04 (static cam, crowded — good
 # ID-switch signal, the M1 scenario) and MOT16-13 (bus-mounted moving camera —
-# the step-3 GMC scenario). MOTChallenge has no per-sequence downloads; we take
+# the GMC eval scenario). MOTChallenge has no per-sequence downloads; we take
 # the full MOT16.zip (~1.9 GB) once, keep only what we need, and drop the rest.
 # KEEP_ZIP=1 keeps the archive under data/downloads; MOT_SEQS="MOT16-04 ..."
 # overrides the sequence list.

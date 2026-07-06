@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static INT8 QDQ quantization dry run — the NPU rehearsal (step-2 P5, D-0008).
+"""Static INT8 QDQ quantization dry run — the NPU rehearsal (D-0008, RESULTS.md S2.5).
 
 Produces parallel INT8 variants next to the fp32 models (which stay
 canonical): QDQ format, per-channel INT8 weights, UINT8 activations — the

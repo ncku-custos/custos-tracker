@@ -143,7 +143,7 @@ SotNodeParams declare_sot_params(rclcpp_lifecycle::LifecycleNode& node) {
 
   // Default "hsv" diverges from the struct default None on purpose: it mirrors
   // the CLI --reid operating default (RESULTS.md S3.3 — the re-lock veto is
-  // the step-3 keep). "none" restores pure geometry.
+  // a measured keep). "none" restores pure geometry.
   const auto reid = get_string(node, "reid.embedder", "hsv");
   if (reid == "hsv")
     p.cfg.reid.embedder = ctrk::SotConfig::Reid::Embedder::HsvHist;

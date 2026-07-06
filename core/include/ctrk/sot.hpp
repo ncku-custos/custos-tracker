@@ -29,7 +29,7 @@ struct SotConfig {
   EngineOptions engine{.intra_op_threads = 2, .allow_spinning = false};
 
   // Post-processing constants — cv::TrackerNano parity (do not tune before
-  // the oracle differential test passes; tuning is step 3).
+  // the oracle differential test passes).
   float penalty_k = 0.055f;
   float window_influence = 0.455f;
   float size_lr = 0.37f;

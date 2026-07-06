@@ -1,5 +1,5 @@
-# Drone operating point for the TBD tracker (docs/DECISIONS.md D-0013 + the
-# step-3 rollup S3.10): the camera always moves in flight, so GMC is on here
+# Drone operating point for the TBD tracker (docs/DECISIONS.md D-0013 +
+# RESULTS.md S3.10): the camera always moves in flight, so GMC is on here
 # even though the host/struct default stays off; detect_interval 2 improves
 # identity metrics and nearly halves effective compute (S3.2).
 #

@@ -1,4 +1,4 @@
-# Drone operating point for the SOT tracker (step-3 rollup S3.10): detector-
+# Drone operating point for the SOT tracker (RESULTS.md S3.10): detector-
 # assisted re-acquisition with the HSV re-lock veto (the node's reid default)
 # rescues occlusion losses without wrong-relock regressions (S3.3). Add
 # reid.embedder: nanoz + reid.drift_check_every: 5 to also catch confident

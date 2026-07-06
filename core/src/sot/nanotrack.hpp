@@ -21,8 +21,8 @@ void nano_subwindow(const cv::Mat& img, float pos_x, float pos_y, int original_s
 // NanoTrack v2 siamese pipeline. The numerics deliberately replicate
 // OpenCV's TrackerNanoImpl bit-for-bit (including its integer-division and
 // sizeCal(targetPos) quirks) — the differential oracle test depends on it.
-// Deviations from the reference are step-3 work, behind config, after the
-// oracle proves the baseline correct.
+// Deviations from the reference live behind config knobs and were added only
+// after the oracle proved the baseline correct.
 class NanoTracker {
  public:
   explicit NanoTracker(const SotConfig& config);

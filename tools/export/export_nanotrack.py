@@ -15,8 +15,8 @@ outcome is printed and recorded in docs/DECISIONS.md.
 
 M2 spike verdict (v3): nanotrackv3 head emits 15x15 score maps;
 cv::TrackerNano hardcodes a 16x16 grid, so v3 cannot ride the oracle path.
-v2 ships; the C++ postproc grid is head-shape-driven since step 3
-(RESULTS.md S3.7), so v3 exports run behind explicit --backbone-z/x/--head
+v2 ships; the C++ postproc grid is head-shape-driven (RESULTS.md S3.7),
+so v3 exports run behind explicit --backbone-z/x/--head
 model paths.
 
 Usage: tools/.venv/bin/python tools/export/export_nanotrack.py [--version v2|v3]

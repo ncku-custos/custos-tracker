@@ -1,13 +1,15 @@
 # Roadmap — SoC deployment (handoff, updated 2026-07-04 at v0.4.0)
 
-Steps 1 (host bring-up, v0.1.0), 2 (speed, v0.2.0), 3 (quality, v0.3.0)
-and 4 (ROS2 packaging, v0.4.0) are DONE — `RESULTS.md` has every number
-(step 4: S4.0–S4.3), `DECISIONS.md` D-0001..D-0017 every verdict. This
-file carries what remains: putting it on the vehicle.
+Host bring-up (v0.1.0), speed optimization (v0.2.0), quality
+improvements (v0.3.0) and ROS2 packaging (v0.4.0) are DONE —
+`RESULTS.md` has every number (ROS2 packaging: S4.0–S4.3),
+`DECISIONS.md` D-0001..D-0017 every verdict. This file carries what
+remains: putting it on the vehicle.
 
-**Process rule (user-locked):** each step gets its own plan-mode session
-before any code. Measurement discipline stays in force: hypothesis →
-eval → keep-or-revert; negative results get documented anyway.
+**Process rule:** SoC deployment starts with a dedicated planning
+session before any code. Measurement discipline stays in force:
+hypothesis → eval → keep-or-revert; negative results get documented
+anyway.
 
 **Quality gates for any default-config change:** all tests green with the
 `cv::TrackerNano` oracle + YOLO golden tensor actually RUNNING, plus the
@@ -19,7 +21,7 @@ digit-identical to the CLI.
 
 ---
 
-## Step 4 — DONE (v0.4.0). Rollup: RESULTS.md S4.3
+## ROS2 packaging — DONE (v0.4.0). Rollup: RESULTS.md S4.3
 
 One-line summary: the core is consumed via `find_package(ctrk)` (D-0015),
 both trackers run as composable lifecycle components with params 1:1 to
@@ -30,7 +32,7 @@ capture/infer/draw pipelining question is answered with measurements
 VideoCapture JPEG decode divergence, and FFmpeg's 25 fps default for
 image sequences (nominal_fps must match the camera rate).
 
-## Step 5 — SoC deployment (pending; plan-mode session first)
+## SoC deployment (pending; plan first)
 
 - **Bring-up on the vendor SoC image**: build core + `ros2/` there
   (ros_check.sh path); decide cv_bridge/image_transport now that the

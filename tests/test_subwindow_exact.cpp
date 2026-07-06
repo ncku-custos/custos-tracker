@@ -5,8 +5,8 @@
 #include "common/subwindow.hpp"
 #include "sot/nanotrack.hpp"
 
-// The step-2 subwindow rework (pad only the crop window, compute the pad
-// color lazily) must be pixel-identical to the original pad-the-whole-frame
+// The subwindow rework (pad only the crop window, compute the pad color
+// lazily — RESULTS.md S2.1) must be pixel-identical to the original pad-the-whole-frame
 // implementations — the cv::TrackerNano differential oracle depends on the
 // nano variant, MOSSE on the shared one. These references are verbatim copies
 // of the pre-rework code.

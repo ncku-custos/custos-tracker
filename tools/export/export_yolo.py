@@ -6,7 +6,7 @@ in-graph NMS (decode + NMS live in C++), simplified graph. Output lands in
 models/cache/<stem>_<SZ>.onnx (stem defaults to yolov8n).
 
 The C++ detector reads input size, anchor count AND class count from the
-graph, so both the step-2 resolution ladder (512/448/416) and fine-tuned
+graph, so both the resolution ladder (512/448/416, RESULTS.md S2.4) and fine-tuned
 class counts (e.g. the 10-class VisDrone model, RESULTS.md S3.6) are
 export-only: pass --imgsz / --weights.
 
