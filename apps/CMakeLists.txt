@@ -10,3 +10,6 @@ target_link_libraries(track_tbd PRIVATE ctrk_app_common)
 
 add_executable(track_sot track_sot.cpp)
 target_link_libraries(track_sot PRIVATE ctrk_app_common)
+
+add_executable(track_follow track_follow.cpp)
+target_link_libraries(track_follow PRIVATE ctrk_app_common)
